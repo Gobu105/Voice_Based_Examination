@@ -1,3 +1,5 @@
-"""Grading service stubs for manual and AI-assisted grading."""
+from typing import Iterable
 
-# TODO: Implement grading workflows and score calculations here.
+
+def compute_total_marks(answers: Iterable[dict]) -> int:
+    return sum(a.get('marks', 0) or 0 for a in answers)

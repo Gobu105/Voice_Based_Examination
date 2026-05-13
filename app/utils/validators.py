@@ -1,3 +1,9 @@
-"""Input validation helpers."""
+def required_fields(data, keys):
+    return [key for key in keys if not data.get(key)]
 
-# TODO: Add request and form validation functions here.
+
+def is_positive_int(value):
+    try:
+        return int(value) > 0
+    except (TypeError, ValueError):
+        return False

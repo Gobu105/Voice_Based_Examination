@@ -1,5 +1,119 @@
-from flask import Blueprint
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, g, current_app
+from app.database.models import get_db
+from app.utils.decorators import role_required
+from app.services.ai_service import score_answer
 
 examiner_routes = Blueprint('examiner_routes', __name__)
 
-# TODO: Move examiner-related routes from app/__init__.py into this module.
+
+def _examiner_can_access_session(db, examiner_id, session_id):
+    exam_sess = db.exam_sessions.find_one({'_id': session_id})
+    if not exam_sess:
+        return False
+    assignment = db.examiner_assignments.find_one({'examiner_id': examiner_id, 'candidate_id': exam_sess['candidate_id'], 'exam_id': exam_sess['exam_id']})
+    return assignment is not None
+
+
+@examiner_routes.route('/examiner/dashboard')
+@role_required('EXAMINER')
+def examiner_dashboard():
+    db = get_db()
+    examiner_id = g.current_user_id
+    assignments = list(db.examiner_assignments.find({'examiner_id': examiner_id}))
+    students = []
+    for a in assignments:
+        candidate = db.candidates.find_one({'_id': a['candidate_id']})
+        if not candidate:
+            continue
+        user = db.users.find_one({'_id': candidate['reg_id']})
+        exam = db.exams.find_one({'_id': a['exam_id']})
+        sessions_list = list(db.exam_sessions.find({'candidate_id': candidate['_id'], 'exam_id': a['exam_id']}))
+        students.append({'candidate_id': candidate['_id'], 'registration_no': candidate.get('registration_no', 'N/A'), 'full_name': user['full_name'] if user else 'Unknown', 'exam_name': exam['exam_name'] if exam else 'Unknown', 'exam_id': a['exam_id'], 'sessions': sessions_list})
+    return render_template('examiner/examiner_dashboard.html', students=students)
+
+
+@examiner_routes.route('/examiner/delete_session/<int:session_id>', methods=['POST'])
+@role_required('EXAMINER')
+def examiner_delete_session(session_id):
+    db = get_db()
+    if not _examiner_can_access_session(db, g.current_user_id, session_id):
+        flash('You are not assigned to delete this exam session.')
+        return redirect(url_for('examiner_routes.examiner_dashboard'))
+    flash('Deleting sessions is disabled. Exam records are preserved.')
+    return redirect(url_for('examiner_routes.examiner_dashboard'))
+
+
+@examiner_routes.route('/examiner/get_student_answers/<int:session_id>')
+@role_required('EXAMINER')
+def get_student_answers(session_id):
+    db = get_db()
+    if not _examiner_can_access_session(db, g.current_user_id, session_id):
+        return jsonify({"error": "you are not assigned to grade this student's exam"}), 403
+    exam_sess = db.exam_sessions.find_one({'_id': session_id})
+    if not exam_sess:
+        return jsonify({'error': 'session not found'}), 404
+    exam = db.exams.find_one({'_id': exam_sess['exam_id']})
+    exam_key = __import__('app.services.crypto_service', fromlist=['decrypt_exam_key']).decrypt_exam_key(bytes(exam['enc_key_ciphertext']), bytes(exam['enc_key_iv']), bytes(exam['enc_key_tag']), current_app._master_key)
+    answers = list(db.answers.find({'session_id': session_id}))
+    data = []
+    for a in answers:
+        q = db.questions.find_one({'_id': a['question_id']})
+        try:
+            plaintext = __import__('app.services.crypto_service', fromlist=['decrypt_answer']).decrypt_answer(bytes(a['answer_ciphertext']), bytes(a['answer_iv']), bytes(a['answer_tag']), exam_key)
+            tampered = not __import__('app.services.crypto_service', fromlist=['verify_integrity_hash']).verify_integrity_hash(current_app._master_key, plaintext, a['question_id'], session_id, a['encrypted_at'], a['integrity_hash'])
+        except Exception:
+            plaintext = '[DECRYPTION FAILED — answer may have been tampered with]'
+            tampered = True
+        data.append({'answer_id': a['_id'], 'question': q['question_text'] if q else 'Unknown', 'model_answer': q.get('model_answer', '') if q else '', 'answer': plaintext, 'marks': a.get('marks'), 'ai_marks': a.get('ai_marks'), 'grading_method': a.get('grading_method'), 'tampered': tampered})
+    return jsonify(data)
+
+
+@examiner_routes.route('/examiner/save_grade', methods=['POST'])
+@role_required('EXAMINER')
+def examiner_save_grade():
+    db = get_db()
+    answer_id = int(request.form.get('answer_id', 0))
+    marks = int(request.form.get('marks', 0))
+    answer_doc = db.answers.find_one({'_id': answer_id})
+    if not answer_doc:
+        return jsonify({'error': 'answer not found'}), 404
+    if not _examiner_can_access_session(db, g.current_user_id, answer_doc['session_id']):
+        return jsonify({"error": "you are not assigned to grade this student's exam"}), 403
+    db.answers.update_one({'_id': answer_id}, {'$set': {'marks': marks, 'grading_method': 'MANUAL', 'graded_at': __import__('datetime').datetime.now(__import__('datetime').timezone.utc)}})
+    return jsonify({'status': 'marks saved', 'marks': marks})
+
+
+@examiner_routes.route('/examiner/ai_grade', methods=['POST'])
+@role_required('EXAMINER')
+def examiner_ai_grade():
+    db = get_db()
+    answer_id = int(request.form.get('answer_id', 0))
+    answer_doc = db.answers.find_one({'_id': answer_id})
+    if not answer_doc:
+        return jsonify({'error': 'answer not found'}), 404
+    if not _examiner_can_access_session(db, g.current_user_id, answer_doc['session_id']):
+        return jsonify({"error": "you are not assigned to grade this student's exam"}), 403
+    exam_sess = db.exam_sessions.find_one({'_id': answer_doc['session_id']})
+    exam = db.exams.find_one({'_id': exam_sess['exam_id']})
+    exam_key = __import__('app.services.crypto_service', fromlist=['decrypt_exam_key']).decrypt_exam_key(bytes(exam['enc_key_ciphertext']), bytes(exam['enc_key_iv']), bytes(exam['enc_key_tag']), current_app._master_key)
+    try:
+        plaintext = __import__('app.services.crypto_service', fromlist=['decrypt_answer']).decrypt_answer(bytes(answer_doc['answer_ciphertext']), bytes(answer_doc['answer_iv']), bytes(answer_doc['answer_tag']), exam_key)
+    except Exception:
+        return jsonify({'error': 'decryption failed'}), 500
+    question = db.questions.find_one({'_id': answer_doc['question_id']})
+    question_text = question['question_text'] if question else ''
+    model_answer = question.get('model_answer', '') if question else ''
+    ai_marks = score_answer(question_text, plaintext, model_answer)
+    db.answers.update_one({'_id': answer_id}, {'$set': {'marks': ai_marks, 'ai_marks': ai_marks, 'grading_method': 'AI', 'graded_at': __import__('datetime').datetime.now(__import__('datetime').timezone.utc)}})
+    return jsonify({'status': 'ai graded', 'marks': ai_marks})
+
+
+@examiner_routes.route('/examiner/get_result/<int:session_id>')
+@role_required('EXAMINER')
+def examiner_get_result(session_id):
+    db = get_db()
+    if not _examiner_can_access_session(db, g.current_user_id, session_id):
+        return jsonify({"error": "you are not assigned to grade this student's exam"}), 403
+    answers = list(db.answers.find({'session_id': session_id}))
+    total = sum(a.get('marks', 0) or 0 for a in answers)
+    return jsonify({'total_marks': total})
