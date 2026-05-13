@@ -1,90 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Examiner Dashboard</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-<script src="{{ url_for('static', filename='js/examiner.js') }}" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examiner Dashboard</title>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/examiner.css">
+    <link rel="stylesheet" href="/static/css/responsive.css">
+    <script type="module" src="/static/js/app.js">
+    </script>
+
+    <script type="module" src="/static/js/examiner/dashboard.js">
+    </script>
 </head>
+
 <body>
 
-<div class="header">
-    <h2>Examiner Dashboard</h2>
-    <a class="logout" href="/examiner/logout">Logout</a>
-</div>
-
-<div class="container">
-
-{% with messages = get_flashed_messages() %}
-{% if messages %}
-<div class="card flash-box">
-    {% for msg in messages %}
-    <p style="margin: 4px 0;">{{ msg }}</p>
-    {% endfor %}
-</div>
-{% endif %}
-{% endwith %}
-
-<div class="card">
-    <div class="section-title">Assigned Students</div>
-
-    {% if students|length == 0 %}
-    <div class="empty-state">
-        <div class="icon">[ ]</div>
-        <p>No students have been assigned yet.</p>
+    <div class="header">
+        <h2>Examiner Dashboard</h2>
+        <a class="logout" href="/examiner/logout">Logout</a>
     </div>
-    {% endif %}
 
-    {% for s in students %}
-    <div class="student-item">
-        <div class="student-info">
-            <div>
-                <div class="student-name">{{ s.full_name }}</div>
-                <div class="student-meta">
-                    Reg. No: {{ s.registration_no }} &bull; Exam: {{ s.exam_name }}
-                </div>
-            </div>
+    <div class="container">
+
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="card flash-box">
+            {% for msg in messages %}
+            <p style="margin: 4px 0;">{{ msg }}</p>
+            {% endfor %}
         </div>
+        {% endif %}
+        {% endwith %}
 
-        {% if s.sessions|length > 0 %}
-        <div class="session-list">
-            {% for sess in s.sessions %}
-            <div class="session-item">
-                <span>
-                    Session #{{ sess._id }} | Status: <strong>{{ sess.status }}</strong>
-                </span>
-                <div>
-                    <button class="btn" onclick="loadStudentAnswers({{ sess._id }})">Review Answers</button>
+        <div class="card">
+            <div class="section-title">Assigned Students</div>
+
+            {% if students|length == 0 %}
+            <div class="empty-state">
+                <div class="icon">[ ]</div>
+                <p>No students have been assigned yet.</p>
+            </div>
+            {% endif %}
+
+            {% for s in students %}
+            <div class="student-item">
+                <div class="student-info">
+                    <div>
+                        <div class="student-name">{{ s.full_name }}</div>
+                        <div class="student-meta">
+                            Reg. No: {{ s.registration_no }} &bull; Exam: {{ s.exam_name }}
+                        </div>
+                    </div>
                 </div>
+
+                {% if s.sessions|length > 0 %}
+                <div class="session-list">
+                    {% for sess in s.sessions %}
+                    <div class="session-item">
+                        <span>
+                            Session #{{ sess._id }} | Status: <strong>{{ sess.status }}</strong>
+                        </span>
+                        <div>
+                            <button class="btn" onclick="loadStudentAnswers({{ sess._id }})">Review Answers</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="student-meta" style="margin-top: 8px;">No exam sessions yet.</p>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
-        {% else %}
-        <p class="student-meta" style="margin-top: 8px;">No exam sessions yet.</p>
-        {% endif %}
+
+        <div class="card" id="answerArea">
+            <div class="section-title">Answer Review and Grading</div>
+            <div class="empty-state">
+                <div class="icon">[ ]</div>
+                <p>Select a student's session above to review and grade answers.</p>
+            </div>
+        </div>
+
     </div>
-    {% endfor %}
-</div>
-
-<div class="card" id="answerArea">
-    <div class="section-title">Answer Review and Grading</div>
-    <div class="empty-state">
-        <div class="icon">[ ]</div>
-        <p>Select a student's session above to review and grade answers.</p>
-    </div>
-</div>
-
-</div>
-
-<script>
-(function() {
-  setInterval(function() {
-    fetch('/api/session_check?role=EXAMINER', { credentials: 'same-origin' })
-      .then(function(r) { if (r.status === 401) window.location.href = '/login'; })
-      .catch(function() {});
-  }, 2500);
-})();
-</script>
+    <div id="toast-container"></div>
+    <script>
+        (function () {
+            setInterval(function () {
+                fetch('/api/session_check?role=EXAMINER', { credentials: 'same-origin' })
+                    .then(function (r) { if (r.status === 401) window.location.href = '/login'; })
+                    .catch(function () { });
+            }, 2500);
+        })();
+    </script>
 </body>
+
 </html>

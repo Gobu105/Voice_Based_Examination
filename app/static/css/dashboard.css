@@ -1,39 +1,3 @@
-:root {
-    --bg: #f3f6fb;
-    --surface: #ffffff;
-    --surface-muted: #f8fbff;
-    --line: #dbe4ef;
-    --text: #0f172a;
-    --muted: #64748b;
-    --primary: #2563eb;
-    --primary-dark: #1d4ed8;
-    --success: #15803d;
-    --danger: #b91c1c;
-    --warning: #b45309;
-    --radius: 12px;
-    --shadow: 0 10px 30px rgba(15, 23, 42, 0.07);
-}
-
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
-}
-
-body {
-    margin: 0;
-    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-    background:
-        radial-gradient(900px 300px at -15% -25%, #dce7f8 0%, transparent 70%),
-        radial-gradient(700px 220px at 115% 0%, #dceff6 0%, transparent 70%),
-        var(--bg);
-    color: var(--text);
-}
-
-a {
-    color: inherit;
-}
-
 .header {
     margin: 12px auto 0;
     width: min(1220px, 94%);
@@ -131,68 +95,6 @@ a {
     letter-spacing: 0.08em;
     color: var(--muted);
     font-weight: 600;
-}
-
-input,
-select,
-textarea {
-    border: 1px solid var(--line);
-    border-radius: 9px;
-    padding: 8px 11px;
-    font-size: 0.9rem;
-    color: var(--text);
-    background: #fff;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-}
-
-.btn {
-    border: none;
-    border-radius: 9px;
-    padding: 8px 13px;
-    font-size: 0.84rem;
-    font-weight: 600;
-    background: var(--primary);
-    color: #fff;
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.12s ease;
-}
-
-.btn:hover {
-    background: var(--primary-dark);
-    transform: translateY(-1px);
-}
-
-.btn-success {
-    background: var(--success);
-}
-
-.btn-success:hover {
-    background: #166534;
-}
-
-.btn-danger,
-.btn.danger {
-    background: var(--danger);
-}
-
-.btn-danger:hover,
-.btn.danger:hover {
-    background: #991b1b;
-}
-
-.btn-ai {
-    background: #334155;
-}
-
-.btn-ai:hover {
-    background: #1f2937;
 }
 
 .two-col,
@@ -399,11 +301,6 @@ textarea:focus {
     margin-bottom: 6px;
 }
 
-.error {
-    color: var(--danger);
-    font-size: 0.88rem;
-}
-
 #questionArea input {
     margin-right: 6px;
     margin-bottom: 6px;
@@ -416,11 +313,4 @@ textarea:focus {
     text-transform: uppercase;
     letter-spacing: 0.07em;
     color: var(--muted);
-}
-
-@media (max-width: 900px) {
-    .two-col,
-    .assignment-grid {
-        grid-template-columns: 1fr;
-    }
 }

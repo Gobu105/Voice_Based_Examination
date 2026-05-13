@@ -1,0 +1,73 @@
+/* EXAMINER SPECIFIC */
+
+.answer-card {
+    transition:
+        border-color 0.2s ease,
+        transform 0.12s ease,
+        box-shadow 0.2s ease;
+}
+
+.answer-card:hover {
+    border-color: #c8d6e8;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.answer-card h3 {
+    margin-bottom: 6px;
+    font-size: 1rem;
+}
+
+.answer-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.grading-row .btn {
+    min-width: 100px;
+}
+
+.badge-ai {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.badge-manual {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.badge-tampered {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.result-box {
+    display: block;
+}
+
+.ai-analysis {
+    border: 1px solid #d8d4fe;
+    border-radius: 10px;
+    background: #f5f3ff;
+    color: #4c1d95;
+    padding: 12px;
+    line-height: 1.7;
+    margin-top: 10px;
+}
+
+.ai-analysis h4 {
+    margin-bottom: 6px;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.publish-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
