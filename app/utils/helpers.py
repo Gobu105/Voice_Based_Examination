@@ -1,5 +1,6 @@
 import re
 import math
+import random
 from datetime import datetime, timezone
 
 try:
@@ -116,3 +117,22 @@ def format_datetime_for_display(dt):
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc).strftime('%d %b %Y, %I:%M %p UTC')
+
+
+EMAIL_REGEX = re.compile(r'^[\w\.-]+@[\w\.-]+\.\w+$')
+
+
+def is_valid_email(email):
+    if not email:
+        return False
+    return EMAIL_REGEX.match(email) is not None
+
+
+def generate_registration_number(db, prefix='STU'):
+    for _ in range(25):
+        candidate_code = datetime.now(timezone.utc).strftime('%y%m%d')
+        suffix = f"{random.randint(1000, 9999)}"
+        reg_no = f"{prefix}-{candidate_code}-{suffix}"
+        if not db.candidates.find_one({'registration_no': reg_no}):
+            return reg_no
+    raise RuntimeError('Unable to generate a unique registration number. Try again.')

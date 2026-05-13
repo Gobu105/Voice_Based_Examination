@@ -1,7 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash, g, current_app
 from app.database.models import get_db, get_next_id
+from app.services.auth_service import build_email_verification_fields, send_verification_email
 from app.utils.decorators import roles_required
-from app.utils.helpers import _is_active_flag, _candidate_and_user, get_active_exam, ensure_examiner_assignment
+from app.utils.helpers import _is_active_flag, _candidate_and_user, get_active_exam, ensure_examiner_assignment, generate_registration_number, is_valid_email
+from app.validators import validate_registration
 
 invigilator_routes = Blueprint('invigilator_routes', __name__)
 
@@ -59,8 +61,21 @@ def create_student():
     phone = request.form.get('phone_no', '').strip()
     registration_no = request.form.get('registration_no', '').strip()
 
-    if not all([full_name, username, email, password, registration_no]):
+    if not all([full_name, username, email, password]):
         flash('All required fields must be filled.')
+        return redirect(request.referrer or url_for('invigilator_routes.invigilator_dashboard'))
+
+    if not is_valid_email(email):
+        flash('Please enter a valid email address.')
+        return redirect(request.referrer or url_for('invigilator_routes.invigilator_dashboard'))
+
+    if len(password) < 8:
+        flash('Password must be at least 8 characters long.')
+        return redirect(request.referrer or url_for('invigilator_routes.invigilator_dashboard'))
+
+    valid, validation_error = validate_registration(full_name, username, email, password)
+    if not valid:
+        flash(validation_error)
         return redirect(request.referrer or url_for('invigilator_routes.invigilator_dashboard'))
 
     if db.users.find_one({'username': username}):
@@ -71,16 +86,38 @@ def create_student():
         flash(f"Email '{email}' already exists.")
         return redirect(request.referrer or url_for('invigilator_routes.invigilator_dashboard'))
 
+    if not registration_no:
+        registration_no = generate_registration_number(db)
+
     if db.candidates.find_one({'registration_no': registration_no}):
         flash(f"Registration number '{registration_no}' already exists.")
         return redirect(request.referrer or url_for('invigilator_routes.invigilator_dashboard'))
 
+    verification_fields = build_email_verification_fields()
     reg_id = get_next_id('users')
-    db.users.insert_one({'_id': reg_id, 'full_name': full_name, 'username': username, 'email': email, 'password_hash': __import__('werkzeug.security', fromlist=['generate_password_hash']).generate_password_hash(password), 'role': 'CANDIDATE', 'is_active': True, 'phone_no': phone or None, 'created_at': __import__('datetime').datetime.now(__import__('datetime').timezone.utc), 'session_token': None})
+    db.users.insert_one({
+        '_id': reg_id,
+        'full_name': full_name,
+        'username': username,
+        'email': email,
+        'password_hash': __import__('werkzeug.security', fromlist=['generate_password_hash']).generate_password_hash(password),
+        'role': 'CANDIDATE',
+        'is_active': True,
+        'email_verified': False,
+        'verification_token': verification_fields['verification_token'],
+        'verification_sent_at': verification_fields['verification_sent_at'],
+        'phone_no': phone or None,
+        'created_at': __import__('datetime').datetime.now(__import__('datetime').timezone.utc),
+        'session_token': None,
+    })
     candidate_id = get_next_id('candidates')
     db.candidates.insert_one({'_id': candidate_id, 'reg_id': reg_id, 'registration_no': registration_no})
 
-    flash(f"Student '{full_name}' created successfully (username: {username}).")
+    verification_url = send_verification_email({'email': email, 'full_name': full_name, 'verification_token': verification_fields['verification_token']})
+    if verification_url:
+        flash(f"Student '{full_name}' created. Verification link: {verification_url}")
+    else:
+        flash(f"Student '{full_name}' created successfully. A verification email has been sent.")
     return redirect(request.referrer or url_for('invigilator_routes.invigilator_dashboard'))
 
 

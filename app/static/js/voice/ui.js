@@ -13,6 +13,15 @@ export function initializeUI() {
         statusText:
             document.getElementById("status-text"),
 
+        saveStatusDot:
+            document.getElementById("save-status-dot"),
+
+        saveStatusText:
+            document.getElementById("save-status-text"),
+
+        draftBanner:
+            document.getElementById("draft-banner"),
+
         interimBox:
             document.getElementById("interim-transcript"),
 
@@ -107,6 +116,36 @@ export function updateAnswerDisplay() {
 
         els.answerList.appendChild(li);
     });
+}
+
+
+export function setSaveStatus(status, message) {
+    state.saveStatus = status;
+
+    if (!els.saveStatusDot || !els.saveStatusText) return;
+
+    const statusClass = {
+        'idle': 'idle',
+        'saving': 'processing',
+        'saved': 'saved',
+        'error': 'error',
+        'offline': 'offline',
+    }[status] || 'idle';
+
+    els.saveStatusDot.className = 'status-dot ' + statusClass;
+    els.saveStatusText.textContent = message;
+}
+
+
+export function showDraftBanner(visible, message = '') {
+    if (!els.draftBanner) return;
+
+    if (visible) {
+        els.draftBanner.style.display = 'block';
+        if (message) els.draftBanner.textContent = message;
+    } else {
+        els.draftBanner.style.display = 'none';
+    }
 }
 
 

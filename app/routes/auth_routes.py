@@ -1,6 +1,11 @@
 from flask import Blueprint, current_app, render_template, request, redirect, url_for, session, flash, jsonify, g
 from app.database.models import get_db
-from app.services.auth_service import verify_session_for_role, logout_current_role
+from app.services.auth_service import (
+    verify_session_for_role,
+    logout_current_role,
+    verify_email_token,
+    send_verification_email,
+)
 
 
 auth_routes = Blueprint('auth_routes', __name__)
@@ -73,13 +78,25 @@ def login():
         flash('Invalid username or password')
         return redirect(url_for('auth_routes.show_login'))
 
-    if not verify_session_for_role(user['role'], {'user_id': user['_id']}) or not user.get('password_hash'):
+    if not user.get('password_hash'):
         flash('Invalid username or password')
         return redirect(url_for('auth_routes.show_login'))
 
     from werkzeug.security import check_password_hash
     if not check_password_hash(user['password_hash'], password):
         flash('Invalid username or password')
+        return redirect(url_for('auth_routes.show_login'))
+
+    if user.get('is_active', True) is False:
+        flash('Your account is inactive. Please contact an administrator.')
+        return redirect(url_for('auth_routes.show_login'))
+
+    if user.get('email_verified') is False:
+        verification_url = send_verification_email(user)
+        if verification_url:
+            flash(f'Email verification required. Verification link: {verification_url}')
+        else:
+            flash('Email verification required. Please ask your administrator to resend the verification link.')
         return redirect(url_for('auth_routes.show_login'))
 
     accounts = session.get('accounts') or {}
@@ -114,6 +131,17 @@ def go_to_dashboard():
                 return redirect(url_for('admin_routes.admin_dashboard'))
             if role == 'EXAMINER':
                 return redirect(url_for('examiner_routes.examiner_dashboard'))
+    return redirect(url_for('auth_routes.show_login'))
+
+
+@auth_routes.route('/verify_email/<token>')
+def verify_email(token):
+    user = verify_email_token(token)
+    if not user:
+        flash('Verification link is invalid or expired.')
+        return redirect(url_for('auth_routes.show_login'))
+
+    flash(f"Email verified for {user.get('full_name', 'your account')}. You may now log in.")
     return redirect(url_for('auth_routes.show_login'))
 
 

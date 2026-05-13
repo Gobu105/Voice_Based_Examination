@@ -1,0 +1,13 @@
+<div class="modal" id="{{ modal_id or 'modal' }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h2>{{ title or 'Dialog' }}</h2>
+            <button class="modal-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">{{ body | safe }}</div>
+        <div class="modal-footer">
+            {% if primary_label %}<button class="btn btn-primary">{{ primary_label }}</button>{% endif %}
+            {% if secondary_label %}<button class="btn btn-secondary">{{ secondary_label }}</button>{% endif %}
+        </div>
+    </div>
+</div>

@@ -1,7 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, g
 from app.database.models import get_db, get_next_id
-from app.utils.helpers import _is_active_flag, _candidate_and_user
+from app.services.auth_service import build_email_verification_fields, send_verification_email
 from app.utils.decorators import role_required
+from app.utils.helpers import _is_active_flag, _candidate_and_user, generate_registration_number, is_valid_email
+from app.validators import validate_registration
 
 admin_routes = Blueprint('admin_routes', __name__)
 
@@ -70,8 +72,18 @@ def admin_create_user():
         flash('All required fields must be filled.')
         return redirect(url_for('admin_routes.admin_dashboard'))
 
-    if role == 'CANDIDATE' and not registration_no:
-        flash('Registration number is required for students.')
+    if not is_valid_email(email):
+        flash('Please enter a valid email address.')
+        return redirect(url_for('admin_routes.admin_dashboard'))
+
+    if len(password) < 8:
+        flash('Password must be at least 8 characters long.')
+        return redirect(url_for('admin_routes.admin_dashboard'))
+
+    registration_value = registration_no if role == 'CANDIDATE' else None
+    valid, validation_error = validate_registration(full_name, username, email, password, registration_value)
+    if not valid:
+        flash(validation_error)
         return redirect(url_for('admin_routes.admin_dashboard'))
 
     if db.users.find_one({'username': username}):
@@ -82,10 +94,14 @@ def admin_create_user():
         flash(f"Email '{email}' already exists.")
         return redirect(url_for('admin_routes.admin_dashboard'))
 
-    if role == 'CANDIDATE' and db.candidates.find_one({'registration_no': registration_no}):
-        flash(f"Registration number '{registration_no}' already exists.")
-        return redirect(url_for('admin_routes.admin_dashboard'))
+    if role == 'CANDIDATE':
+        if not registration_no:
+            registration_no = generate_registration_number(db)
+        if db.candidates.find_one({'registration_no': registration_no}):
+            flash(f"Registration number '{registration_no}' already exists.")
+            return redirect(url_for('admin_routes.admin_dashboard'))
 
+    verification_fields = build_email_verification_fields()
     user_id = get_next_id('users')
     db.users.insert_one({
         '_id': user_id,
@@ -95,6 +111,9 @@ def admin_create_user():
         'password_hash': __import__('werkzeug.security', fromlist=['generate_password_hash']).generate_password_hash(password),
         'role': role,
         'is_active': True,
+        'email_verified': False,
+        'verification_token': verification_fields['verification_token'],
+        'verification_sent_at': verification_fields['verification_sent_at'],
         'phone_no': phone or None,
         'created_at': __import__('datetime').datetime.now(__import__('datetime').timezone.utc),
         'session_token': None,
@@ -108,7 +127,12 @@ def admin_create_user():
             'registration_no': registration_no,
         })
 
-    flash(f"{role.title()} '{full_name}' created successfully (username: {username}).")
+    verification_url = send_verification_email({'email': email, 'full_name': full_name, 'verification_token': verification_fields['verification_token']})
+    if verification_url:
+        flash(f"{role.title()} '{full_name}' created. Verification link: {verification_url}")
+    else:
+        flash(f"{role.title()} '{full_name}' created successfully. A verification email has been sent.")
+
     return redirect(url_for('admin_routes.admin_dashboard'))
 
 

@@ -30,5 +30,11 @@ export const state = {
 
     saveInProgress: false,
 
-    pendingSubmission: false
+    pendingSubmission: false,
+
+    networkOnline: navigator.onLine,
+
+    lastSaveError: null,
+
+    saveStatus: 'idle',
 };

@@ -1,4 +1,7 @@
+from datetime import datetime, timezone
+
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, g, current_app
+from pymongo.errors import PyMongoError
 from app.database.models import get_db, get_next_id
 from app.utils.decorators import roles_required
 from app.utils.helpers import _is_active_flag, _candidate_and_user, get_active_exam, ensure_examiner_assignment, normalize_answer, format_datetime_for_display
@@ -75,41 +78,123 @@ def save_answer():
     data = request.get_json() or {}
     question_id = int(data.get('question_id', 0))
     answer_text = data.get('answer', '')
+    if question_id <= 0 or not isinstance(answer_text, str):
+        return jsonify({'error': 'Invalid request data'}), 400
+
     question = db.questions.find_one({'_id': question_id})
-    normalized_answer = normalize_answer(question['question_text'] if question else '', answer_text)
+    if not question:
+        return jsonify({'error': 'Question not found'}), 404
+
+    normalized_answer = normalize_answer(question['question_text'], answer_text)
+    if not normalized_answer:
+        return jsonify({'error': 'Answer text is empty after normalization'}), 400
 
     exam_sess = db.exam_sessions.find_one({'_id': g.exam_session_id})
     if not exam_sess:
         return jsonify({'error': 'session not found'}), 400
+    if exam_sess.get('status') == 'SUBMITTED':
+        return jsonify({'error': 'Exam session already submitted'}), 403
 
     exam = db.exams.find_one({'_id': exam_sess['exam_id']})
     if not exam:
         return jsonify({'error': 'exam not found'}), 400
 
-    ensure_examiner_assignment(db, exam_sess['candidate_id'], exam_sess['exam_id'])
-    exam_key = __import__('app.services.crypto_service', fromlist=['decrypt_exam_key']).decrypt_exam_key(
-        bytes(exam['enc_key_ciphertext']),
-        bytes(exam['enc_key_iv']),
-        bytes(exam['enc_key_tag']),
-        current_app._master_key,
-    )
-    ciphertext, iv, tag = __import__('app.services.crypto_service', fromlist=['encrypt_answer']).encrypt_answer(normalized_answer, exam_key)
-    now = __import__('datetime').datetime.now(__import__('datetime').timezone.utc)
-    integrity = __import__('app.services.crypto_service', fromlist=['compute_integrity_hash']).compute_integrity_hash(current_app._master_key, normalized_answer, question_id, g.exam_session_id, now)
+    if not ensure_examiner_assignment(db, exam_sess['candidate_id'], exam_sess['exam_id']):
+        return jsonify({'error': 'Examiner assignment unavailable'}), 500
 
-    answer_id = get_next_id('answers')
-    db.answers.insert_one({
-        '_id': answer_id,
-        'session_id': g.exam_session_id,
-        'question_id': question_id,
-        'answer_ciphertext': ciphertext,
-        'answer_iv': iv,
-        'answer_tag': tag,
-        'integrity_hash': integrity,
-        'encrypted_at': now,
-        'marks': None,
-    })
-    return jsonify({'status': 'saved', 'normalized_answer': normalized_answer})
+    try:
+        exam_key = __import__('app.services.crypto_service', fromlist=['decrypt_exam_key']).decrypt_exam_key(
+            bytes(exam['enc_key_ciphertext']),
+            bytes(exam['enc_key_iv']),
+            bytes(exam['enc_key_tag']),
+            current_app._master_key,
+        )
+        ciphertext, iv, tag = __import__('app.services.crypto_service', fromlist=['encrypt_answer']).encrypt_answer(normalized_answer, exam_key)
+        now = datetime.now(timezone.utc)
+        integrity = __import__('app.services.crypto_service', fromlist=['compute_integrity_hash']).compute_integrity_hash(
+            current_app._master_key,
+            normalized_answer,
+            question_id,
+            g.exam_session_id,
+            now,
+        )
+
+        answer_doc = db.answers.find_one({'session_id': g.exam_session_id, 'question_id': question_id})
+        version_item = {
+            'version_number': 1,
+            'answer_ciphertext': ciphertext,
+            'answer_iv': iv,
+            'answer_tag': tag,
+            'integrity_hash': integrity,
+            'encrypted_at': now,
+        }
+
+        if answer_doc:
+            last_versions = answer_doc.get('versions', [])
+            last_text = None
+            if last_versions:
+                try:
+                    last_text = __import__('app.services.crypto_service', fromlist=['decrypt_answer']).decrypt_answer(
+                        bytes(last_versions[-1]['answer_ciphertext']),
+                        bytes(last_versions[-1]['answer_iv']),
+                        bytes(last_versions[-1]['answer_tag']),
+                        exam_key,
+                    )
+                except Exception:
+                    last_text = None
+
+            if last_text == normalized_answer:
+                return jsonify({
+                    'status': 'unchanged',
+                    'message': 'Answer has not changed since last save.',
+                    'last_saved_at': format_datetime_for_display(answer_doc.get('updated_at') or answer_doc.get('encrypted_at')),
+                })
+
+            version_item['version_number'] = len(last_versions) + 1
+            last_versions.append(version_item)
+            db.answers.update_one(
+                {'_id': answer_doc['_id']},
+                {
+                    '$set': {
+                        'answer_ciphertext': ciphertext,
+                        'answer_iv': iv,
+                        'answer_tag': tag,
+                        'integrity_hash': integrity,
+                        'encrypted_at': now,
+                        'versions': last_versions,
+                        'updated_at': now,
+                    }
+                },
+            )
+            version_count = len(last_versions)
+        else:
+            answer_id = get_next_id('answers')
+            db.answers.insert_one({
+                '_id': answer_id,
+                'session_id': g.exam_session_id,
+                'question_id': question_id,
+                'answer_ciphertext': ciphertext,
+                'answer_iv': iv,
+                'answer_tag': tag,
+                'integrity_hash': integrity,
+                'encrypted_at': now,
+                'marks': None,
+                'versions': [version_item],
+                'created_at': now,
+                'updated_at': now,
+            })
+            version_count = 1
+
+        return jsonify({
+            'status': 'saved',
+            'normalized_answer': normalized_answer,
+            'version_count': version_count,
+            'last_saved_at': format_datetime_for_display(now),
+        })
+    except PyMongoError as exc:
+        return jsonify({'error': 'Database error saving answer. Please retry.'}), 500
+    except Exception as exc:
+        return jsonify({'error': f'Unable to save answer: {str(exc)}'}), 500
 
 
 @candidate_routes.route('/api/exam_status')

@@ -54,13 +54,55 @@
     background: #ca8a04;
 }
 
+.status-dot.saved {
+    background: #059669;
+}
+
 .status-dot.error {
     background: var(--danger);
+}
+
+.status-dot.offline {
+    background: #0ea5e9;
 }
 
 .status-label {
     color: var(--muted);
     font-size: 0.82rem;
+}
+
+.save-status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: rgba(100, 116, 139, 0.1);
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+
+.draft-banner {
+    background: #fef08a;
+    border-left: 4px solid #ca8a04;
+    padding: 10px 14px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #92400e;
+    margin-bottom: 10px;
+    display: none;
+}
+
+.draft-banner.warning {
+    background: #fee2e2;
+    border-left-color: var(--danger);
+    color: #7f1d1d;
+}
+
+.draft-banner.offline {
+    background: #e0f2fe;
+    border-left-color: #0ea5e9;
+    color: #0c4a6e;
 }
 
 .exam-timer {
