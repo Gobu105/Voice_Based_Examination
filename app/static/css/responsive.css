@@ -1,0 +1,115 @@
+@media (max-width: 1100px) {
+
+    .exam-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .two-col,
+    .assignment-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 860px) {
+
+    .header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .exam-header {
+        flex-wrap: wrap;
+    }
+
+    .container {
+        width: min(96%, 100%);
+    }
+
+    .card,
+    .panel {
+        padding: 14px;
+    }
+
+    .grading-row {
+        align-items: stretch;
+    }
+}
+
+@media (max-width: 640px) {
+
+    body {
+        font-size: 14px;
+    }
+
+    .header {
+        padding: 12px;
+    }
+
+    .header h2 {
+        font-size: 1rem;
+    }
+
+    .exam-container {
+        width: 98%;
+    }
+
+    .panel {
+        padding: 12px;
+    }
+
+    .question-display {
+        font-size: 0.95rem;
+    }
+
+    .transcript-area {
+        min-height: 72px;
+    }
+
+    .answer-list {
+        margin-left: 14px;
+    }
+
+    .data-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .form-row {
+        flex-direction: column;
+    }
+
+    .grading-row {
+        width: 100%;
+    }
+
+    .session-item,
+    .item.flex {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 420px) {
+
+    .btn {
+        width: 100%;
+    }
+
+    .exam-timer {
+        width: 100%;
+    }
+
+    .status-bar {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .question-display {
+        padding: 12px;
+    }
+
+    .answer-card {
+        padding: 12px;
+    }
+}

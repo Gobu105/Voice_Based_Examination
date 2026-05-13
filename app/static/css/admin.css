@@ -1,0 +1,54 @@
+/* ADMIN SPECIFIC */
+
+.assignment-grid {
+    margin-top: 10px;
+}
+
+.assignment-item form {
+    margin-top: 10px;
+}
+
+.assignment-item .btn {
+    margin-right: 6px;
+}
+
+#registration-number-group {
+    display: flex;
+    flex-direction: column;
+}
+
+#create-user-form .form-group {
+    min-width: 180px;
+}
+
+#create-user-form button {
+    min-width: 140px;
+}
+
+.user-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.user-actions .btn {
+    min-width: 110px;
+}
+
+.student-item {
+    transition: border-color 0.2s ease;
+}
+
+.student-item:hover {
+    border-color: #c8d6e8;
+}
+
+.role-management {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.role-management .role-badge {
+    cursor: default;
+}

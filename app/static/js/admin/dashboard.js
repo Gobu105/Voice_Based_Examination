@@ -1,0 +1,68 @@
+import {
+    initializeAlerts
+}
+from "../common/alerts.js";
+
+import {
+    logAdminEvent
+}
+from "./users.js";
+
+
+document.addEventListener(
+
+    "DOMContentLoaded",
+
+    () => {
+
+        initializeAlerts();
+
+        initializeDashboard();
+    }
+);
+
+
+function initializeDashboard() {
+
+    logAdminEvent(
+        "Admin dashboard initialized"
+    );
+
+    initializeRegistrationToggle();
+}
+
+
+function initializeRegistrationToggle() {
+
+    const checkbox =
+        document.getElementById(
+            "auto-generate-reg"
+        );
+
+    const manualInput =
+        document.getElementById(
+            "registration-number-group"
+        );
+
+    if (
+        !checkbox ||
+        !manualInput
+    ) {
+
+        return;
+    }
+
+    checkbox.addEventListener(
+
+        "change",
+
+        () => {
+
+            manualInput.style.display =
+
+                checkbox.checked
+                    ? "none"
+                    : "block";
+        }
+    );
+}

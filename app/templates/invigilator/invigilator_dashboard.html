@@ -1,200 +1,213 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Invigilator Dashboard</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-<script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invigilator Dashboard</title>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/invigilator.css">
+    <link rel="stylesheet" href="/static/css/responsive.css">
+    <script type="module" src="/static/js/app.js">
+    </script>
+
+    <script type="module" src="/static/js/invigilator/dashboard.js">
+    </script>
 </head>
+
 <body>
 
-<div class="header">
-    <h2>Invigilator Control Panel</h2>
-    <a class="logout" href="/invigilator/logout">Logout</a>
-</div>
-
-<div class="container">
-
-{% with messages = get_flashed_messages() %}
-{% if messages %}
-<div class="card flash-box">
-    {% for msg in messages %}
-    <p style="margin: 4px 0;">{{ msg }}</p>
-    {% endfor %}
-</div>
-{% endif %}
-{% endwith %}
-
-<div class="card">
-    <div class="section-title">Create Student Account</div>
-
-    <form action="/invigilator/create_student" method="post" class="form-row">
-        <input type="text" name="full_name" placeholder="Full Name *" required>
-        <input type="text" name="username" placeholder="Username *" required>
-        <input type="email" name="email" placeholder="Email *" required>
-        <input type="password" name="password" placeholder="Password *" required>
-        <input type="text" name="registration_no" placeholder="Registration No. *" required>
-        <input type="text" name="phone_no" placeholder="Phone (optional)">
-        <button class="btn btn-success">Create Student</button>
-    </form>
-</div>
-
-<div class="card">
-    <div class="section-title">Students</div>
-
-    {% if candidates|length == 0 %}
-    <div class="empty-state">No students found.</div>
-    {% endif %}
-
-    {% for c in candidates %}
-    <div class="item flex">
-        <div>
-            <strong>{{ c.full_name }}</strong>
-            <span style="color:#64748b;"> | Reg. No: {{ c.registration_no }}</span>
-            {% if c.is_active %}
-            <span class="badge badge-manual">Active</span>
-            {% else %}
-            <span class="badge badge-tampered">Inactive</span>
-            {% endif %}
-        </div>
-        <form action="/invigilator/toggle_student_status/{{ c._id }}" method="post"
-              onsubmit="return confirm('Change student account status?');">
-            {% if c.is_active %}
-            <button type="submit" class="btn btn-danger">Set Inactive</button>
-            {% else %}
-            <button type="submit" class="btn btn-success">Set Active</button>
-            {% endif %}
-        </form>
+    <div class="header">
+        <h2>Invigilator Control Panel</h2>
+        <a class="logout" href="/invigilator/logout">Logout</a>
     </div>
-    {% endfor %}
-</div>
 
-<div class="card">
-    <div class="section-title">Assign Student to Exam</div>
-    <form action="/invigilator/assign_student_exam" method="post" class="form-row">
-        <select name="candidate_id" required style="min-width: 220px;">
-            <option value="">Select student</option>
-            {% for c in active_candidates %}
-            <option value="{{ c._id }}">{{ c.full_name }} ({{ c.registration_no }})</option>
+    <div class="container">
+
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="card flash-box">
+            {% for msg in messages %}
+            <p style="margin: 4px 0;">{{ msg }}</p>
             {% endfor %}
-        </select>
-        <select name="exam_id" required style="min-width: 240px;">
-            <option value="">Select exam</option>
-            {% for e in exams %}
-            <option value="{{ e._id }}">{{ e.exam_name }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit" class="btn btn-success">Assign</button>
-    </form>
-
-    {% if exam_assignments|length > 0 %}
-    <hr class="section-divider">
-    <div class="subsection-title">Current Assignments</div>
-    <ul style="margin: 0; padding-left: 18px;">
-    {% for a in exam_assignments %}
-    <li style="margin: 6px 0;">
-        {{ a.candidate_name }} &rarr; {{ a.exam_name }}
-        {% if not a.candidate_active %}
-        <span class="badge badge-tampered">Student Inactive</span>
-        {% endif %}
-        {% if not a.exam_active %}
-        <span class="badge badge-tampered">Exam Inactive</span>
-        {% endif %}
-        <form action="/invigilator/unassign_student_exam/{{ a._id }}" method="post" style="display: inline; margin-left: 8px;">
-            <button type="submit" class="btn btn-danger" style="padding: 2px 8px; font-size: 12px;">Remove</button>
-        </form>
-    </li>
-    {% endfor %}
-    </ul>
-    {% endif %}
-</div>
-
-<div class="card">
-    <div class="section-title">Create New Exam</div>
-
-    <form action="/invigilator/create_exam" method="post" class="form-row">
-        <input type="text" name="name" placeholder="Exam Name" required>
-        <input type="number" name="duration" placeholder="Duration (minutes)" required>
-        <button class="btn btn-success">Create Exam</button>
-    </form>
-</div>
-
-<div class="card">
-    <div class="section-title">Available Exams</div>
-
-    {% if exams|length == 0 %}
-    <div class="empty-state">No exams created yet.</div>
-    {% endif %}
-
-    {% for e in exams %}
-    <div class="item flex">
-        <div>
-            <strong>{{ e.exam_name }}</strong>
-            {% if e.is_active %}
-            <span class="badge badge-manual">Active</span>
-            {% else %}
-            <span class="badge badge-tampered">Inactive</span>
-            {% endif %}
         </div>
-        <div>
-            <button class="btn" onclick="loadQuestions({{ e._id }})">Manage Questions</button>
-            <a href="/invigilator/start_exam/{{ e._id }}">
-                <button class="btn btn-success">Start Exam</button>
-            </a>
-            <form action="/invigilator/toggle_exam_status/{{ e._id }}" method="post" style="display:inline;"
-                  onsubmit="return confirm('Change exam status?');">
-                {% if e.is_active %}
-                <button type="submit" class="btn btn-danger">Set Inactive</button>
-                {% else %}
-                <button type="submit" class="btn btn-success">Set Active</button>
-                {% endif %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="card">
+            <div class="section-title">Create Student Account</div>
+
+            <form action="/invigilator/create_student" method="post" class="form-row">
+                <input type="text" name="full_name" placeholder="Full Name *" required>
+                <input type="text" name="username" placeholder="Username *" required>
+                <input type="email" name="email" placeholder="Email *" required>
+                <input type="password" name="password" placeholder="Password *" required>
+                <input type="text" name="registration_no" placeholder="Registration No. *" required>
+                <input type="text" name="phone_no" placeholder="Phone (optional)">
+                <button class="btn btn-success">Create Student</button>
             </form>
         </div>
-    </div>
-    {% endfor %}
-</div>
 
-<div class="card" id="questionArea">
-    <div class="section-title">Question Management</div>
-    <p style="color: #64748b; margin: 0;">Select an exam to manage questions.</p>
-</div>
+        <div class="card">
+            <div class="section-title">Students</div>
 
-<div class="card">
-    <div class="section-title">Exam Sessions</div>
+            {% if candidates|length == 0 %}
+            <div class="empty-state">No students found.</div>
+            {% endif %}
 
-    {% if sessions|length == 0 %}
-    <div class="empty-state">No exam sessions yet.</div>
-    {% endif %}
-
-    {% for s in sessions %}
-    <div class="item flex">
-        <div>
-            Session {{ s._id }} | Candidate {{ s.candidate_id }}
+            {% for c in candidates %}
+            <div class="item flex">
+                <div>
+                    <strong>{{ c.full_name }}</strong>
+                    <span style="color:#64748b;"> | Reg. No: {{ c.registration_no }}</span>
+                    {% if c.is_active %}
+                    <span class="badge badge-manual">Active</span>
+                    {% else %}
+                    <span class="badge badge-tampered">Inactive</span>
+                    {% endif %}
+                </div>
+                <form action="/invigilator/toggle_student_status/{{ c._id }}" method="post"
+                    onsubmit="return confirm('Change student account status?');">
+                    {% if c.is_active %}
+                    <button type="submit" class="btn btn-danger">Set Inactive</button>
+                    {% else %}
+                    <button type="submit" class="btn btn-success">Set Active</button>
+                    {% endif %}
+                </form>
+            </div>
+            {% endfor %}
         </div>
 
-        <div>
-            <button class="btn" onclick="viewAnswers({{ s._id }})">Evaluate Answers</button>
+        <div class="card">
+            <div class="section-title">Assign Student to Exam</div>
+            <form action="/invigilator/assign_student_exam" method="post" class="form-row">
+                <select name="candidate_id" required style="min-width: 220px;">
+                    <option value="">Select student</option>
+                    {% for c in active_candidates %}
+                    <option value="{{ c._id }}">{{ c.full_name }} ({{ c.registration_no }})</option>
+                    {% endfor %}
+                </select>
+                <select name="exam_id" required style="min-width: 240px;">
+                    <option value="">Select exam</option>
+                    {% for e in exams %}
+                    <option value="{{ e._id }}">{{ e.exam_name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-success">Assign</button>
+            </form>
+
+            {% if exam_assignments|length > 0 %}
+            <hr class="section-divider">
+            <div class="subsection-title">Current Assignments</div>
+            <ul style="margin: 0; padding-left: 18px;">
+                {% for a in exam_assignments %}
+                <li style="margin: 6px 0;">
+                    {{ a.candidate_name }} &rarr; {{ a.exam_name }}
+                    {% if not a.candidate_active %}
+                    <span class="badge badge-tampered">Student Inactive</span>
+                    {% endif %}
+                    {% if not a.exam_active %}
+                    <span class="badge badge-tampered">Exam Inactive</span>
+                    {% endif %}
+                    <form action="/invigilator/unassign_student_exam/{{ a._id }}" method="post"
+                        style="display: inline; margin-left: 8px;">
+                        <button type="submit" class="btn btn-danger"
+                            style="padding: 2px 8px; font-size: 12px;">Remove</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
         </div>
+
+        <div class="card">
+            <div class="section-title">Create New Exam</div>
+
+            <form action="/invigilator/create_exam" method="post" class="form-row">
+                <input type="text" name="name" placeholder="Exam Name" required>
+                <input type="number" name="duration" placeholder="Duration (minutes)" required>
+                <button class="btn btn-success">Create Exam</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="section-title">Available Exams</div>
+
+            {% if exams|length == 0 %}
+            <div class="empty-state">No exams created yet.</div>
+            {% endif %}
+
+            {% for e in exams %}
+            <div class="item flex">
+                <div>
+                    <strong>{{ e.exam_name }}</strong>
+                    {% if e.is_active %}
+                    <span class="badge badge-manual">Active</span>
+                    {% else %}
+                    <span class="badge badge-tampered">Inactive</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <button class="btn" onclick="loadQuestions({{ e._id }})">Manage Questions</button>
+                    <a href="/invigilator/start_exam/{{ e._id }}">
+                        <button class="btn btn-success">Start Exam</button>
+                    </a>
+                    <form action="/invigilator/toggle_exam_status/{{ e._id }}" method="post" style="display:inline;"
+                        onsubmit="return confirm('Change exam status?');">
+                        {% if e.is_active %}
+                        <button type="submit" class="btn btn-danger">Set Inactive</button>
+                        {% else %}
+                        <button type="submit" class="btn btn-success">Set Active</button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="card" id="questionArea">
+            <div class="section-title">Question Management</div>
+            <p style="color: #64748b; margin: 0;">Select an exam to manage questions.</p>
+        </div>
+
+        <div class="card">
+            <div class="section-title">Exam Sessions</div>
+
+            {% if sessions|length == 0 %}
+            <div class="empty-state">No exam sessions yet.</div>
+            {% endif %}
+
+            {% for s in sessions %}
+            <div class="item flex">
+                <div>
+                    Session {{ s._id }} | Candidate {{ s.candidate_id }}
+                </div>
+
+                <div>
+                    <button class="btn" onclick="viewAnswers({{ s._id }})">Evaluate Answers</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="card" id="answerArea">
+            <div class="section-title">Answer Evaluation</div>
+            <p style="color: #64748b; margin: 0;">Click on a session to evaluate answers.</p>
+        </div>
+
     </div>
-    {% endfor %}
-</div>
+    <div id="toast-container"></div>
 
-<div class="card" id="answerArea">
-    <div class="section-title">Answer Evaluation</div>
-    <p style="color: #64748b; margin: 0;">Click on a session to evaluate answers.</p>
-</div>
-
-</div>
-
-<script>
-(function() {
-  setInterval(function() {
-    fetch('/api/session_check?role=INVIGILATOR', { credentials: 'same-origin' })
-      .then(function(r) { if (r.status === 401) window.location.href = '/login'; })
-      .catch(function() {});
-  }, 2500);
-})();
-</script>
+    <script>
+        (function () {
+            setInterval(function () {
+                fetch('/api/session_check?role=INVIGILATOR', { credentials: 'same-origin' })
+                    .then(function (r) { if (r.status === 401) window.location.href = '/login'; })
+                    .catch(function () { });
+            }, 2500);
+        })();
+    </script>
 </body>
+
 </html>
