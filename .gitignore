@@ -1,5 +1,25 @@
-venv/
+# Python
 __pycache__/
 *.pyc
+.venv/
+
+# Environment
 .env
+
+# Logs
+logs/*
+!logs/.gitkeep
+!logs/README.md
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+!uploads/README.md
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
