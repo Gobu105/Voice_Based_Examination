@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="{{ url_for('static', filename='admin.js') }}" defer></script>
+</head>
+<body>
+
+<div class="header">
+    <h2>Admin Control Panel</h2>
+    <a class="logout" href="/admin/logout">Logout</a>
+</div>
+
+<div class="container">
+
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="card flash-box">
+        {% for msg in messages %}
+        <p style="margin: 4px 0;">{{ msg }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="card">
+        <div class="section-title">+ Create User Account</div>
+
+        <form action="/admin/create_user" method="post">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select name="role" id="role-select" required>
+                        <option value="CANDIDATE">Student</option>
+                        <option value="INVIGILATOR">Invigilator</option>
+                        <option value="EXAMINER">Examiner</option>
+                        <option value="ADMIN">Admin</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" name="full_name" placeholder="Full Name" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Username *</label>
+                    <input type="text" name="username" placeholder="Username" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" name="email" placeholder="Email" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Password *</label>
+                    <input type="password" name="password" placeholder="Password" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" name="phone_no" placeholder="Phone (optional)">
+                </div>
+
+                <div class="form-group" id="reg-group">
+                    <label>Registration No. *</label>
+                    <input type="text" name="registration_no" placeholder="Registration No.">
+                </div>
+
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-success">Create User</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="section-title">Users</div>
+
+        {% if users|length == 0 %}
+        <div class="empty-state">No users in the system.</div>
+        {% else %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>{{ u._id }}</td>
+                    <td><strong>{{ u.full_name }}</strong></td>
+                    <td>{{ u.username }}</td>
+                    <td>{{ u.email }}</td>
+                    <td><span class="role-badge role-{{ u.role }}">{{ u.role }}</span></td>
+                    <td>
+                        {% if u.is_active %}
+                        <span class="badge badge-manual">Active</span>
+                        {% else %}
+                        <span class="badge badge-tampered">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.role == 'CANDIDATE' %}
+                        <form action="/admin/toggle_student_status/{{ u._id }}" method="post" style="display:inline;"
+                            onsubmit="return confirmToggleStudent('{{ u.full_name }}')">
+                            {% if u.is_active %}
+                            <button class="btn btn-danger" type="submit">Set Inactive</button>
+                            {% else %}
+                            <button class="btn btn-success" type="submit">Set Active</button>
+                            {% endif %}
+                        </form>
+                        {% else %}
+                        <span style="color: #94a3b8; font-size: 13px;">&bull;</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+
+    <div class="two-col">
+
+        <div class="card">
+            <div class="section-title">Assign Invigilator to Exam</div>
+
+            <form action="/admin/assign_invigilator" method="post">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Invigilator</label>
+                        <select name="invigilator_id" required>
+                            {% for u in users %}
+                            {% if u.role == 'INVIGILATOR' %}
+                            <option value="{{ u._id }}">{{ u.full_name }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Exam</label>
+                        <select name="exam_id" required>
+                            {% for e in exams %}
+                            <option value="{{ e._id }}">{{ e.exam_name }} {% if e.is_active %}(Active){% else %}(Inactive){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-primary">Assign</button>
+                    </div>
+                </div>
+            </form>
+
+            <hr class="section-divider">
+
+            <div class="subsection-title">Current Assignments</div>
+
+            {% if invigilator_assignments|length == 0 %}
+            <div class="empty-state">No invigilator assignments.</div>
+            {% endif %}
+
+            {% for a in invigilator_assignments %}
+            <div class="assignment-item">
+                <div class="assignment-info">
+                    <strong>{{ a.invigilator_name }}</strong><br>
+                    <span>&rarr; {{ a.exam_name }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="card">
+            <div class="section-title">Assign Examiner to Student</div>
+
+            <form action="/admin/assign_examiner" method="post">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Examiner</label>
+                        <select name="examiner_id" required>
+                            {% for u in users %}
+                            {% if u.role == 'EXAMINER' %}
+                            <option value="{{ u._id }}">{{ u.full_name }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Student</label>
+                        <select name="candidate_id" required>
+                            {% for c in candidates %}
+                            <option value="{{ c._id }}">
+                                {{ c.registration_no }} - {{ c.student_name }}
+                                {% if not c.is_active %}(Inactive){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Exam</label>
+                        <select name="exam_id" required>
+                            {% for e in exams %}
+                            <option value="{{ e._id }}">{{ e.exam_name }} {% if e.is_active %}(Active){% else %}(Inactive){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-primary">Assign</button>
+                    </div>
+                </div>
+            </form>
+
+            <hr class="section-divider">
+
+            <div class="subsection-title">Current Assignments</div>
+
+            {% if examiner_assignments|length == 0 %}
+            <div class="empty-state">No examiner assignments.</div>
+            {% endif %}
+
+            {% for a in examiner_assignments %}
+            <div class="assignment-item" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <div class="assignment-info">
+                    <strong>{{ a.examiner_name }}</strong><br>
+                    <span>&rarr; {{ a.student_name }} ({{ a.registration_no }}) | {{ a.exam_name }}</span>
+                </div>
+                <form action="/admin/remove_examiner_assignment/{{ a._id }}" method="post" style="display:inline;"
+                    onsubmit="return confirmRemoveAssignment()">
+                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;">&times;</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+(function() {
+  setInterval(function() {
+    fetch('/api/session_check?role=ADMIN', { credentials: 'same-origin' })
+      .then(function(r) { if (r.status === 401) window.location.href = '/login'; })
+      .catch(function() {});
+  }, 2500);
+})();
+</script>
+</body>
+</html>
