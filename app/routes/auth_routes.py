@@ -12,7 +12,11 @@ auth_routes = Blueprint('auth_routes', __name__)
 
 
 def get_request_role(path, args):
-    if path in ('/', '/login', '/logout', '/exam/submitted', '/go') or path.startswith('/static/'):
+    # Allow unauthenticated access to login, logout, and public endpoints
+    if path in ('/', '/logout', '/exam/submitted', '/go') or path.startswith('/static/') or path.startswith('/verify_email'):
+        return None
+    # Both GET and POST for /login should be unauthenticated
+    if path == '/login':
         return None
     if path.startswith('/candidate'):
         return 'CANDIDATE'
@@ -104,6 +108,7 @@ def login():
     if user['role'] == 'CANDIDATE':
         accounts[user['role']]['exam_session_id'] = None
     session['accounts'] = accounts
+    session.permanent = True
 
     if user['role'] == 'INVIGILATOR':
         return redirect(url_for('invigilator_routes.invigilator_dashboard'))

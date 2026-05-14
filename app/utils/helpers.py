@@ -19,7 +19,7 @@ if language_tool_python is not None:
 def _is_active_flag(doc):
     if not doc:
         return False
-    return doc.get('is_active', True) is not False
+    return doc.get('is_active', False) is True
 
 
 def _candidate_and_user(db, candidate_id):
@@ -31,7 +31,7 @@ def _candidate_and_user(db, candidate_id):
 
 
 def get_active_exam(db):
-    return db.exams.find_one({'is_active': {'$ne': False}})
+    return db.exams.find_one({'is_active': True})
 
 
 def ensure_examiner_assignment(db, candidate_id, exam_id):
@@ -43,7 +43,7 @@ def ensure_examiner_assignment(db, candidate_id, exam_id):
     examiner_id = prior.get('examiner_id') if prior else None
 
     if examiner_id is None:
-        examiner_user = db.users.find_one({'role': 'EXAMINER', 'is_active': {'$ne': False}}, sort=[('_id', 1)])
+        examiner_user = db.users.find_one({'role': 'EXAMINER', 'is_active': True}, sort=[('_id', 1)])
         if not examiner_user:
             return None
         examiner_id = examiner_user['_id']

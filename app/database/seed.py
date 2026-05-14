@@ -19,6 +19,7 @@ with app.app_context():
     db.users.create_index("username", unique=True)
     db.users.create_index("email", unique=True)
     db.candidates.create_index("registration_no", unique=True)
+    # ----
     # -----------------------------
 
     # -----------------------------
@@ -32,8 +33,7 @@ with app.app_context():
         "email": "invigilator@test.com",
         "password_hash": generate_password_hash("invigilator123"),
         "role": "INVIGILATOR",
-        "is_active": True,
-        "phone_no": None,
+        "is_active": True,        "email_verified": True,        "phone_no": None,
         "created_at": datetime.now(timezone.utc),
         "session_token": None,
     })
@@ -49,8 +49,7 @@ with app.app_context():
         "email": "student@test.com",
         "password_hash": generate_password_hash("student123"),
         "role": "CANDIDATE",
-        "is_active": True,
-        "phone_no": "9999999999",
+        "is_active": True,        "email_verified": True,        "phone_no": "9999999999",
         "created_at": datetime.now(timezone.utc),
         "session_token": None,
     })
@@ -66,8 +65,7 @@ with app.app_context():
         "email": "examiner@test.com",
         "password_hash": generate_password_hash("examiner123"),
         "role": "EXAMINER",
-        "is_active": True,
-        "phone_no": None,
+        "is_active": True,        "email_verified": True,        "phone_no": None,
         "created_at": datetime.now(timezone.utc),
         "session_token": None,
     })
@@ -83,8 +81,7 @@ with app.app_context():
         "email": "admin@test.com",
         "password_hash": generate_password_hash("admin123"),
         "role": "ADMIN",
-        "is_active": True,
-        "phone_no": None,
+        "is_active": True,        "email_verified": True,        "phone_no": None,
         "created_at": datetime.now(timezone.utc),
         "session_token": None,
     })

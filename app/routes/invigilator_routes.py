@@ -189,6 +189,8 @@ def create_exam():
 
     try:
         duration = int(duration)
+        if duration <= 0:
+            duration = 60
     except ValueError:
         duration = 60
 

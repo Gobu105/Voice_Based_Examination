@@ -8,6 +8,11 @@ import {
 }
 from "./questions.js";
 
+import {
+    viewAnswers
+}
+from "./answers.js";
+
 
 document.addEventListener(
 
@@ -29,4 +34,7 @@ function initializeInvigilatorDashboard() {
     );
 
     loadQuestions();
+    
+    // Make viewAnswers globally available
+    window.viewAnswers = viewAnswers;
 }

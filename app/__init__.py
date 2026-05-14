@@ -1,5 +1,6 @@
 from flask import Flask
 import os
+from datetime import timedelta
 
 from .database.models import init_app as init_db
 from .services.crypto_service import load_master_key
@@ -13,6 +14,13 @@ from .routes.candidate_routes import candidate_routes
 def create_app() -> Flask:
     app = Flask(__name__, static_folder='static', template_folder='templates')
     app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'secretkey123')
+
+    # Session configuration
+    app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+    app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 
     app.config['MONGO_URI'] = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
     app.config['MONGO_DB_NAME'] = os.environ.get('MONGO_DB_NAME', 'exam_db')
