@@ -3,22 +3,13 @@ import {
 }
 from "../common/alerts.js";
 
-import {
-    loadQuestions
-}
-from "./questions.js";
-
-import {
-    viewAnswers
-}
-from "./answers.js";
-
-
 document.addEventListener(
 
     "DOMContentLoaded",
 
     () => {
+
+        console.log("Dashboard DOM loaded");
 
         initializeAlerts();
 
@@ -33,8 +24,4 @@ function initializeInvigilatorDashboard() {
         "Invigilator dashboard initialized"
     );
 
-    loadQuestions();
-    
-    // Make viewAnswers globally available
-    window.viewAnswers = viewAnswers;
 }

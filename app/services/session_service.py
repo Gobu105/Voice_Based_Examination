@@ -23,4 +23,4 @@ def complete_exam_session(db, session_id):
 
 
 def get_active_session(db, candidate_id, exam_id):
-    return db.exam_sessions.find_one({'candidate_id': candidate_id, 'exam_id': exam_id, 'status': {'$ne': 'SUBMITTED'}})
+    return db.exam_sessions.find_one({'candidate_id': candidate_id, 'exam_id': exam_id, 'status': 'STARTED'})

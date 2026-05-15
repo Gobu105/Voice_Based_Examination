@@ -23,11 +23,17 @@
                 <span id="status-text" class="status-label">Ready</span>
             </div>
             <div id="exam-timer" class="exam-timer">--:--</div>
+            <div class="status-bar">
+                <span id="save-status-dot" class="status-dot idle"></span>
+                <span id="save-status-text" class="status-label">Not started</span>
+            </div>
             <a href="/candidate/results" class="logout-link" style="margin-right: 10px;">View Results</a>
             <a href="/candidate/logout" class="logout-link">Logout</a>
         </header>
 
         <!-- Main content grid -->
+        <div id="draft-banner" class="card flash-box" style="display: none; margin-bottom: 12px;"></div>
+
         <div class="exam-grid">
 
             <!-- Left: Question + Transcript -->
@@ -98,7 +104,7 @@
             // Poll exam status: enable Start Exam when invigilator has started; auto-start only on transition false -> true
             var previousInvigilatorStarted = null;
             var examStatusInterval = setInterval(function () {
-                if (window._examAutoStarted) {
+                if (window._examAutoStarted || window._examInProgress) {
                     clearInterval(examStatusInterval);
                     return;
                 }
@@ -110,7 +116,7 @@
                         if (now === true && btn) {
                             btn.disabled = false;
                             var q = document.getElementById('current-question');
-                            if (q && !window._examAutoStarted) q.innerHTML = 'The invigilator has started your exam. Press <strong>Start Exam</strong> to begin.';
+                            if (q && !window._examAutoStarted && !window._examInProgress) q.innerHTML = 'The invigilator has started your exam. Press <strong>Start Exam</strong> to begin.';
                         }
                         if (previousInvigilatorStarted === null) {
                             previousInvigilatorStarted = now;

@@ -24,7 +24,8 @@ import {
 from "./command_matcher.js";
 
 import {
-    COMMANDS
+    COMMANDS,
+    cmdGoToQuestion
 }
 from "./commands.js";
 
@@ -112,9 +113,32 @@ export async function processTranscript(
     }
 
     // command matching
+    const commandText =
+        text
+            .toLowerCase()
+            .replace(/[^\w\s]/g, "")
+            .trim();
+
+    const goToMatch =
+        commandText.match(
+            /^(?:go to|show|display|open)?\s*question\s+(\d+)$/
+        ) ||
+        commandText.match(
+            /^go to question number\s+(\d+)$/
+        );
+
+    if (goToMatch) {
+
+        cmdGoToQuestion(
+            Number(goToMatch[1])
+        );
+
+        return;
+    }
+
     const cmd =
         matchCommand(
-            text,
+            commandText,
             COMMANDS
         );
 
@@ -139,9 +163,19 @@ export async function processTranscript(
         state.questions.length
     ) {
 
+        const existingAnswer =
+            state.answers[
+                state.currentIndex
+            ];
+
+        const combinedAnswer =
+            existingAnswer
+                ? `${existingAnswer} ${text}`.trim()
+                : text;
+
         state.answers[
             state.currentIndex
-        ] = text;
+        ] = combinedAnswer;
 
         updateAnswerDisplay();
 
@@ -155,7 +189,7 @@ export async function processTranscript(
             const result =
                 await saveAnswerAPI(
                     questionId,
-                    text
+                    combinedAnswer
                 );
 
             if (result.error) {
@@ -179,6 +213,18 @@ export async function processTranscript(
 
             state.lastSavedAt =
                 new Date();
+
+            const answerKey =
+                `${state.examSessionId}|${questionId}`;
+
+            if (
+                result.status === "saved" ||
+                result.status === "unchanged"
+            ) {
+                state.syncedAnswers[answerKey] =
+                    combinedAnswer;
+                delete state.pendingAnswers[answerKey];
+            }
 
             log(
                 `

@@ -11,11 +11,16 @@ import {
 from "../common/alerts.js";
 
 
-export async function loadQuestions() {
+let currentExamId = null;
+
+
+export async function loadQuestions(examId) {
+
+    currentExamId = examId;
 
     const container =
         document.getElementById(
-            "questions-container"
+            "questionArea"
         );
 
     if (!container) {
@@ -26,56 +31,71 @@ export async function loadQuestions() {
 
         const data =
             await apiGet(
-                "/invigilator/questions"
+                `/invigilator/get_questions/${examId}`
             );
 
         container.innerHTML = "";
 
         if (
-            !data.questions ||
-            data.questions.length === 0
+            !data ||
+            data.length === 0
         ) {
 
             container.innerHTML = `
                 <p>
-                    No questions available.
+                    No questions available for this exam.
                 </p>
+                <div style="margin-top: 20px;">
+                    <input type="text" id="new-question-text" placeholder="Question text" style="width: 100%; margin-bottom: 10px;" />
+                    <textarea id="new-question-answer" placeholder="Model answer" style="width: 100%; height: 100px; margin-bottom: 10px;"></textarea>
+                    <button onclick="addQuestion()" class="btn btn-success">Add Question</button>
+                </div>
             `;
 
             return;
         }
 
-        data.questions.forEach(q => {
+        let html = `
+            <div style="margin-bottom: 20px;">
+                <input type="text" id="new-question-text" placeholder="Question text" style="width: 100%; margin-bottom: 10px;" />
+                <textarea id="new-question-answer" placeholder="Model answer" style="width: 100%; height: 100px; margin-bottom: 10px;"></textarea>
+                <button onclick="addQuestion()" class="btn btn-success">Add Question</button>
+            </div>
+        `;
 
-            const card =
-                document.createElement(
-                    "div"
-                );
+        data.forEach(q => {
 
-            card.className =
-                "question-card";
+            html += `
 
-            card.innerHTML = `
+                <div class="question-card" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
 
-                <h3>
-                    Question ${q.number}
-                </h3>
+                    <h3>
+                        Question ${q.id}
+                    </h3>
 
-                <p>
-                    ${q.text}
-                </p>
+                    <p>
+                        ${q.text}
+                    </p>
 
-                <button
-                    class="delete-question-btn"
-                    data-id="${q.id}">
+                    <p><strong>Model Answer:</strong> ${q.model_answer}</p>
 
-                    Delete
+                    <button
+                        class="delete-question-btn"
+                        data-id="${q.id}">
 
-                </button>
+                        Delete
+
+                    </button>
+                </div>
             `;
-
-            container.appendChild(card);
         });
+
+        container.innerHTML = `
+            <div class="section-title">Question Management</div>
+            <div id="questions-container">
+                ${html}
+            </div>
+        `;
 
         bindDeleteButtons();
 
@@ -115,16 +135,20 @@ function bindDeleteButtons() {
 }
 
 
-export async function addQuestion(
-    text
-) {
+export async function addQuestion() {
 
-    if (!text.trim()) {
+    const textInput = document.getElementById('new-question-text');
+    const answerInput = document.getElementById('new-question-answer');
+    const text = textInput.value.trim();
+    const modelAnswer = answerInput.value.trim();
 
-        showError(
-            "Question cannot be empty"
-        );
+    if (!text || !modelAnswer) {
+        showError("Both question text and model answer are required");
+        return;
+    }
 
+    if (!currentExamId) {
+        showError("No exam selected");
         return;
     }
 
@@ -134,7 +158,9 @@ export async function addQuestion(
             await apiPost(
                 "/invigilator/add_question",
                 {
-                    text
+                    exam_id: currentExamId,
+                    text: text,
+                    model_answer: modelAnswer
                 }
             );
 
@@ -143,7 +169,10 @@ export async function addQuestion(
             "Question added"
         );
 
-        await loadQuestions();
+        textInput.value = '';
+        answerInput.value = '';
+
+        await loadQuestions(currentExamId);
 
     } catch (err) {
 
@@ -173,11 +202,7 @@ export async function deleteQuestion(
 
         const result =
             await apiPost(
-                "/invigilator/delete_question",
-                {
-                    question_id:
-                        questionId
-                }
+                `/invigilator/delete_question/${questionId}`
             );
 
         showSuccess(
@@ -185,7 +210,9 @@ export async function deleteQuestion(
             "Question deleted"
         );
 
-        await loadQuestions();
+        if (currentExamId) {
+            await loadQuestions(currentExamId);
+        }
 
     } catch (err) {
 

@@ -1,4 +1,4 @@
-export const COOLDOWN_AFTER_TTS_MS = 1200;
+export const COOLDOWN_AFTER_TTS_MS = 250;
 
 export const COMMAND_THRESHOLD = 0.55;
 

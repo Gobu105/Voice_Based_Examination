@@ -169,6 +169,7 @@ export function persistDraftLocally() {
     const payload = {
         answers: state.answers,
         questionIds: state.questionIds,
+        examSessionId: state.examSessionId,
         currentIndex: state.currentIndex,
         syncedAnswers: state.syncedAnswers,
         pendingAnswers: state.pendingAnswers,
@@ -192,7 +193,7 @@ export function persistDraftLocally() {
 }
 
 
-export function restoreDraft() {
+export function restoreDraft(expectedQuestionIds = [], expectedSessionId = null) {
     const raw = localStorage.getItem(LOCAL_KEY);
     if (!raw) {
         return { restored: false, pendingCount: 0 };
@@ -205,11 +206,21 @@ export function restoreDraft() {
             return { restored: false, pendingCount: 0 };
         }
 
+        if (
+            expectedQuestionIds.length > 0 &&
+            Array.isArray(draft.questionIds) &&
+            draft.questionIds.join("|") !== expectedQuestionIds.join("|")
+        ) {
+            clearDraft();
+            return { restored: false, pendingCount: 0 };
+        }
+
         state.answers = draft.answers;
         state.questionIds = draft.questionIds || [];
         state.currentIndex = draft.currentIndex || -1;
         state.syncedAnswers = draft.syncedAnswers || {};
         state.pendingAnswers = draft.pendingAnswers || {};
+        state.examSessionId = expectedSessionId || draft.examSessionId || state.examSessionId;
 
         const pendingCount = Object.keys(state.pendingAnswers).length;
 
@@ -260,10 +271,15 @@ function handleBeforeUnload(event) {
     }
 
     const pending = Object.keys(state.pendingAnswers).length;
-    if (pending > 0) {
+    const answered = state.answers.filter(Boolean).length;
+
+    if (pending > 0 || answered > 0) {
         persistDraftLocally();
 
         event.preventDefault();
-        event.returnValue = `You have ${pending} unsaved answer(s). Leaving may lose them.`;
+        event.returnValue =
+            pending > 0
+                ? `You have ${pending} unsaved answer(s). Leaving may lose them.`
+                : "Your exam is still active. Leaving may interrupt the examination.";
     }
 }

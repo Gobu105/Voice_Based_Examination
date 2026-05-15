@@ -17,7 +17,7 @@ def candidate_dashboard():
     exam = get_active_exam(db)
     invigilator_started = False
     if candidate and exam:
-        invigilator_started = db.exam_sessions.find_one({'candidate_id': candidate['_id'], 'exam_id': exam['_id'], 'status': {'$ne': 'SUBMITTED'}}) is not None
+        invigilator_started = db.exam_sessions.find_one({'candidate_id': candidate['_id'], 'exam_id': exam['_id'], 'status': 'STARTED'}) is not None
     return render_template('candidate/student_dashboard.html', invigilator_started=invigilator_started)
 
 
@@ -207,7 +207,7 @@ def exam_status():
     exam = get_active_exam(db)
     if not exam:
         return jsonify({'invigilator_started': False})
-    has_session = db.exam_sessions.find_one({'candidate_id': candidate['_id'], 'exam_id': exam['_id'], 'status': {'$ne': 'SUBMITTED'}}) is not None
+    has_session = db.exam_sessions.find_one({'candidate_id': candidate['_id'], 'exam_id': exam['_id'], 'status': 'STARTED'}) is not None
     return jsonify({'invigilator_started': has_session})
 
 
@@ -222,7 +222,7 @@ def start_exam():
     if not exam:
         return jsonify({'error': 'No exam available'}), 400
 
-    existing = db.exam_sessions.find_one({'candidate_id': candidate['_id'], 'exam_id': exam['_id'], 'status': {'$ne': 'SUBMITTED'}})
+    existing = db.exam_sessions.find_one({'candidate_id': candidate['_id'], 'exam_id': exam['_id'], 'status': 'STARTED'})
     if not existing:
         return jsonify({'error': 'You cannot start the exam yet. The invigilator must assign you to an exam and then start it. Wait for the invigilator to start the exam.'}), 403
     ensure_examiner_assignment(db, candidate['_id'], exam['_id'])
@@ -258,6 +258,28 @@ def submit_exam():
     accounts['CANDIDATE'] = candidate_account
     session['accounts'] = accounts
     return jsonify({'status': 'submitted', 'submitted_at': format_datetime_for_display(now)})
+
+
+@candidate_routes.route('/api/transcribe', methods=['POST'])
+@roles_required(('CANDIDATE',))
+def transcribe_audio():
+    if 'audio' not in request.files:
+        return jsonify({'error': 'No audio file provided'}), 400
+    
+    audio_file = request.files['audio']
+    if not audio_file or not audio_file.filename:
+        return jsonify({'error': 'Invalid audio file'}), 400
+    
+    # Validate format
+    if not __import__('app.services.speech_service', fromlist=['validate_audio_format']).validate_audio_format(audio_file.filename):
+        return jsonify({'error': 'Unsupported audio format. Use WAV, MP3, OGG, or M4A.'}), 400
+    
+    try:
+        audio_bytes = audio_file.read()
+        transcription = __import__('app.services.speech_service', fromlist=['transcribe_audio']).transcribe_audio(audio_bytes)
+        return jsonify({'transcription': transcription})
+    except Exception as e:
+        return jsonify({'error': f'Transcription failed: {str(e)}'}), 500
 
 
 @candidate_routes.route('/exam/submitted')

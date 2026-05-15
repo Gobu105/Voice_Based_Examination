@@ -64,7 +64,9 @@
                             Session #{{ sess._id }} | Status: <strong>{{ sess.status }}</strong>
                         </span>
                         <div>
-                            <button class="btn" onclick="loadStudentAnswers({{ sess._id }})">Review Answers</button>
+                            <a href="/examiner/evaluate/{{ sess._id }}">
+                                <button class="btn">Evaluate</button>
+                            </a>
                         </div>
                     </div>
                     {% endfor %}
@@ -74,14 +76,6 @@
                 {% endif %}
             </div>
             {% endfor %}
-        </div>
-
-        <div class="card" id="answerArea">
-            <div class="section-title">Answer Review and Grading</div>
-            <div class="empty-state">
-                <div class="icon">[ ]</div>
-                <p>Select a student's session above to review and grade answers.</p>
-            </div>
         </div>
 
     </div>

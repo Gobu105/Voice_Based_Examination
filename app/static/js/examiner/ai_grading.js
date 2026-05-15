@@ -46,7 +46,9 @@ export async function aiGrade(
 }
 
 
-export async function aiGradeAll() {
+export async function aiGradeAll(
+    sessionId
+) {
 
     const ok =
         confirm(
@@ -64,15 +66,17 @@ export async function aiGradeAll() {
 
         const result =
             await apiPost(
-                "/examiner/ai_grade_all"
+                "/examiner/ai_grade_all",
+                {
+                    session_id:
+                        sessionId
+                }
             );
 
         showSuccess(
             result.message ||
             "AI grading completed"
         );
-
-        window.location.reload();
 
     } catch (err) {
 

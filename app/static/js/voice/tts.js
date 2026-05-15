@@ -62,15 +62,15 @@ export function speak(text) {
 
         utterance.onend = () => {
 
+            state.ttsActive = false;
+
             state.cooldownUntil =
                 Date.now() +
                 COOLDOWN_AFTER_TTS_MS;
 
             setTimeout(() => {
 
-                speakCue(
-                    "You may speak now."
-                );
+                safeStartRecognition();
 
             }, COOLDOWN_AFTER_TTS_MS);
         };

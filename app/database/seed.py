@@ -127,6 +127,16 @@ with app.app_context():
     })
 
     # -----------------------------
+    # EXAM ASSIGNMENT (assign student to exam)
+    # -----------------------------
+    exam_assign_id = get_next_id("exam_assignments")
+    db.exam_assignments.insert_one({
+        "_id": exam_assign_id,
+        "candidate_id": cand_id,
+        "exam_id": exam_id,
+    })
+
+    # -----------------------------
     # SAMPLE PHYSICS SUBJECTIVE QUESTIONS (10-question demo exam)
     # -----------------------------
     question_bank = [

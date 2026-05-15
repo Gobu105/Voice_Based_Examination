@@ -258,7 +258,7 @@ export async function loadStudentAnswers(
 
         html += `
             <div style="margin-top: 15px;">
-                <button onclick="aiGradeAllHandler()" class="btn" style="background: #4CAF50; width: 100%;">AI Grade All</button>
+                <button onclick="aiGradeAllHandler(${sessionId})" class="btn" style="background: #4CAF50; width: 100%;">AI Grade All</button>
             </div>
         `;
 
@@ -281,21 +281,3 @@ export async function loadStudentAnswers(
 }
 
 
-window.saveGradeHandler = async function(answerId) {
-    const input = document.getElementById(`marks-${answerId}`);
-    const marks = Number(input.value);
-    await saveGrade(answerId, marks);
-    // Reload answers after grading
-    const sessionId = new URLSearchParams(window.location.search).get('session_id');
-    if (sessionId) {
-        await loadStudentAnswers(sessionId);
-    }
-};
-
-window.aiGradeHandler = async function(answerId) {
-    await aiGrade(answerId);
-};
-
-window.aiGradeAllHandler = async function() {
-    await aiGradeAll();
-};

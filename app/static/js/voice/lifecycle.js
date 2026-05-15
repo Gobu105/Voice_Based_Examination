@@ -13,6 +13,12 @@ import {
 from "./timer.js";
 
 import {
+    showQuestion,
+    updateAnswerDisplay
+}
+from "./ui.js";
+
+import {
     speak
 }
 from "./tts.js";
@@ -23,16 +29,25 @@ import {
 from "./logging.js";
 
 import {
-    safeStartRecognition
+    initializeAutosave,
+    restoreDraft,
+    syncPendingAnswersImmediately
 }
-from "./recognition.js";
+from "./recovery.js";
 
+import {
+    submitExamSafely
+}
+from "./submission.js";
 
 export async function startExam() {
 
     if (state.examActive) {
         return;
     }
+
+    window._examAutoStarted = true;
+    window._examInProgress = true;
 
     state.examActive = true;
 
@@ -43,6 +58,12 @@ export async function startExam() {
     state.questions = [];
 
     state.questionIds = [];
+
+    state.syncedAnswers = {};
+
+    state.pendingAnswers = {};
+
+    state.pendingSubmission = false;
 
     try {
 
@@ -61,9 +82,13 @@ export async function startExam() {
         ) {
 
             startTimer(
-                startData.duration_minutes
+                startData.duration_minutes,
+                submitExamSafely
             );
         }
+
+        state.examSessionId =
+            startData.session_id;
 
         const questions =
             await getQuestionsAPI();
@@ -90,6 +115,27 @@ export async function startExam() {
                 state.questions.length
             );
 
+        const restored =
+            restoreDraft(
+                state.questionIds,
+                state.examSessionId
+            );
+
+        if (!restored.restored) {
+            state.answers =
+                new Array(
+                    state.questions.length
+                );
+        }
+
+        updateAnswerDisplay();
+
+        initializeAutosave();
+
+        if (restored.pendingCount > 0 && navigator.onLine) {
+            syncPendingAnswersImmediately();
+        }
+
         log(
             `
             Loaded
@@ -98,19 +144,44 @@ export async function startExam() {
             `
         );
 
-        safeStartRecognition();
+        if (state.questions.length > 0) {
 
-        speak(
-            `
-            Exam started.
-            Say next question
-            to begin.
-            `
-        );
+            if (
+                state.currentIndex < 0 ||
+                state.currentIndex >= state.questions.length
+            ) {
+                state.currentIndex = 0;
+            }
+
+            showQuestion(
+                state.currentIndex + 1,
+                state.questions[state.currentIndex]
+            );
+
+            speak(
+                `
+                Exam started.
+                Question ${state.currentIndex + 1}.
+                ${state.questions[state.currentIndex]}
+                `
+            );
+        }
+
+        else {
+
+            speak(
+                `
+                Exam started,
+                but no questions are available.
+                `
+            );
+        }
 
     } catch (err) {
 
         state.examActive = false;
+        window._examAutoStarted = false;
+        window._examInProgress = false;
 
         log(
             `

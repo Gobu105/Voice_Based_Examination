@@ -24,15 +24,9 @@ import {
 from "./timer.js";
 
 import {
-    submitExamAPI
+    submitExamSafely
 }
-from "./api.js";
-
-import {
-    persistDraftLocally,
-    clearDraft
-}
-from "./recovery.js";
+from "./submission.js";
 
 
 export const COMMANDS = {
@@ -45,6 +39,18 @@ export const COMMANDS = {
             "go next",
             "move on",
             "next one"
+        ],
+
+        action: cmdNextQuestion
+    },
+
+    skip: {
+
+        synonyms: [
+
+            "skip question",
+            "skip this question",
+            "leave this question"
         ],
 
         action: cmdNextQuestion
@@ -107,6 +113,18 @@ export const COMMANDS = {
         ],
 
         action: cmdSubmitExam
+    },
+
+    help: {
+
+        synonyms: [
+
+            "help me",
+            "voice commands",
+            "show commands"
+        ],
+
+        action: cmdHelp
     }
 };
 
@@ -190,6 +208,42 @@ export function cmdRepeatQuestion() {
             `
         );
     }
+}
+
+
+export function cmdGoToQuestion(questionNumber) {
+
+    const targetIndex =
+        questionNumber - 1;
+
+    if (
+        !Number.isInteger(questionNumber) ||
+        targetIndex < 0 ||
+        targetIndex >= state.questions.length
+    ) {
+
+        speak(
+            "That question number is not available."
+        );
+
+        return;
+    }
+
+    state.currentIndex =
+        targetIndex;
+
+    showQuestion(
+        questionNumber,
+        state.questions[targetIndex]
+    );
+
+    speak(
+        `Question ${questionNumber}. ${state.questions[targetIndex]}`
+    );
+
+    log(
+        `Question ${questionNumber} presented`
+    );
 }
 
 
@@ -291,41 +345,30 @@ export function cmdTimeLeft() {
 
 export async function cmdSubmitExam() {
 
-    state.examActive = false;
+    speak(
+        "Submitting your exam now."
+    );
 
-    try {
+    await submitExamSafely();
+}
 
-        await submitExamAPI();
 
-        speak(
-            `
-            Your exam has been
-            submitted successfully.
-            `
-        );
+export function cmdHelp() {
 
-        log(
-            "Exam submitted"
-        );
+    speak(
+        `
+        You can say next question,
+        skip question,
+        go to question followed by a number,
+        repeat question,
+        read my answer,
+        clear answer,
+        time left,
+        or submit exam.
+        `
+    );
 
-        setTimeout(() => {
-
-            window.location.href =
-                "/exam/submitted";
-
-        }, 4000);
-
-    } catch (err) {
-
-        speak(
-            `
-            There was an error
-            submitting your exam.
-            `
-        );
-
-        log(
-            `Submission error: ${err}`
-        );
-    }
+    log(
+        "Voice command help announced"
+    );
 }

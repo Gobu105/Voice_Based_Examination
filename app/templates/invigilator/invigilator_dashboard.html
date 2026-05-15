@@ -118,6 +118,19 @@
                 {% endfor %}
             </ul>
             {% endif %}
+
+            {% if completed_assignments|length > 0 %}
+            <hr class="section-divider">
+            <div class="subsection-title">Completed Assignments</div>
+            <ul style="margin: 0; padding-left: 18px;">
+                {% for a in completed_assignments %}
+                <li style="margin: 6px 0;">
+                    {{ a.candidate_name }} &rarr; {{ a.exam_name }}
+                    <span class="badge badge-manual">Completed</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
         </div>
 
         <div class="card">
@@ -148,10 +161,22 @@
                     {% endif %}
                 </div>
                 <div>
-                    <button class="btn" onclick="loadQuestions({{ e._id }})">Manage Questions</button>
+                    <a href="/invigilator/edit_exam/{{ e._id }}">
+                        <button class="btn">Manage Exam</button>
+                    </a>
+                    <a href="/invigilator/edit_questions/{{ e._id }}">
+                        <button class="btn">Manage Questions</button>
+                    </a>
+                    {% if e.is_active %}
+                    <form action="/invigilator/stop_exam/{{ e._id }}" method="post" style="display:inline;"
+                        onsubmit="return confirm('Stop this exam now?');">
+                        <button type="submit" class="btn btn-danger">Stop Exam</button>
+                    </form>
+                    {% else %}
                     <a href="/invigilator/start_exam/{{ e._id }}">
                         <button class="btn btn-success">Start Exam</button>
                     </a>
+                    {% endif %}
                     <form action="/invigilator/toggle_exam_status/{{ e._id }}" method="post" style="display:inline;"
                         onsubmit="return confirm('Change exam status?');">
                         {% if e.is_active %}
@@ -160,39 +185,13 @@
                         <button type="submit" class="btn btn-success">Set Active</button>
                         {% endif %}
                     </form>
+                    <form action="/invigilator/delete_exam/{{ e._id }}" method="post" style="display:inline;"
+                        onsubmit="return confirm('Delete exam? This cannot be undone.');">
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
                 </div>
             </div>
             {% endfor %}
-        </div>
-
-        <div class="card" id="questionArea">
-            <div class="section-title">Question Management</div>
-            <p style="color: #64748b; margin: 0;">Select an exam to manage questions.</p>
-        </div>
-
-        <div class="card">
-            <div class="section-title">Exam Sessions</div>
-
-            {% if sessions|length == 0 %}
-            <div class="empty-state">No exam sessions yet.</div>
-            {% endif %}
-
-            {% for s in sessions %}
-            <div class="item flex">
-                <div>
-                    Session {{ s._id }} | Candidate {{ s.candidate_id }}
-                </div>
-
-                <div>
-                    <button class="btn" onclick="viewAnswers({{ s._id }})">Evaluate Answers</button>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-
-        <div class="card" id="answerArea">
-            <div class="section-title">Answer Evaluation</div>
-            <p style="color: #64748b; margin: 0;">Click on a session to evaluate answers.</p>
         </div>
 
     </div>

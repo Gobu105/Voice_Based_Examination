@@ -8,6 +8,8 @@ export const state = {
 
     currentIndex: -1,
 
+    examSessionId: null,
+
     isListening: false,
 
     examActive: false,
@@ -31,6 +33,10 @@ export const state = {
     saveInProgress: false,
 
     pendingSubmission: false,
+
+    syncedAnswers: {},
+
+    pendingAnswers: {},
 
     networkOnline: navigator.onLine,
 

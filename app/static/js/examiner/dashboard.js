@@ -4,8 +4,7 @@ import {
 from "../common/alerts.js";
 
 import {
-    loadPendingAnswers,
-    loadStudentAnswers
+    loadPendingAnswers
 }
 from "./grading.js";
 
@@ -31,6 +30,4 @@ function initializeExaminerDashboard() {
 
     loadPendingAnswers();
     
-    // Make loadStudentAnswers globally available
-    window.loadStudentAnswers = loadStudentAnswers;
 }

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Questions</title>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/invigilator.css">
+    <link rel="stylesheet" href="/static/css/responsive.css">
+</head>
+
+<body>
+
+    <div class="header">
+        <h2>Manage Questions</h2>
+        <a class="logout" href="/invigilator/dashboard">Back to Dashboard</a>
+    </div>
+
+    <div class="container">
+
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="card flash-box">
+            {% for msg in messages %}
+            <p style="margin: 4px 0;">{{ msg }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="card">
+            <div class="section-title">{{ exam.exam_name }}</div>
+            <p style="color: #64748b; margin: 0;">Duration: {{ exam.duration }} minutes</p>
+        </div>
+
+        <div class="card" id="questionArea" data-exam-id="{{ exam._id }}">
+            <div class="section-title">Question Management</div>
+            <p style="color: #64748b; margin: 0;">Loading questions...</p>
+        </div>
+
+    </div>
+
+    <div id="toast-container"></div>
+    <script type="module">
+        import { initializeAlerts } from "/static/js/common/alerts.js";
+        import { loadQuestions, addQuestion } from "/static/js/invigilator/questions.js";
+
+        document.addEventListener("DOMContentLoaded", () => {
+            initializeAlerts();
+            const questionArea = document.getElementById("questionArea");
+            const examId = Number(questionArea.dataset.examId);
+            window.addQuestion = addQuestion;
+            loadQuestions(examId);
+        });
+    </script>
+
+</body>
+
+</html>
