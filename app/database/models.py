@@ -14,6 +14,11 @@ def init_app(app):
     _db.users.create_index("username", unique=True)
     _db.users.create_index("email", unique=True)
     _db.candidates.create_index("registration_no", unique=True)
+    _db.departments.create_index("name", unique=True)
+    _db.subjects.create_index("name", unique=True)
+    _db.academic_years.create_index("name", unique=True)
+    _db.semesters.create_index("name", unique=True)
+    _db.exam_types.create_index("name", unique=True)
 
 
 def get_db():

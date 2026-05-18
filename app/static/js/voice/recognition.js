@@ -31,7 +31,15 @@ let isRecording = false;
 let mediaStream = null;
 let recognition = null;
 let fallbackStopTimer = null;
-const FALLBACK_RECORDING_MS = 5000;
+let audioContext = null;
+let analyser = null;
+let vadFrame = null;
+let silenceStartedAt = null;
+let speechStarted = false;
+const FALLBACK_MAX_RECORDING_MS = 8000;
+const FALLBACK_MIN_RECORDING_MS = 1200;
+const SILENCE_STOP_MS = 900;
+const VOLUME_THRESHOLD = 0.025;
 
 export function safeStartRecognition() {
     clearTimeout(state.restartTimer);
@@ -93,8 +101,14 @@ function startTranscriptionFallback() {
     navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
             mediaStream = stream;
-            mediaRecorder = new MediaRecorder(stream);
+            const mimeType =
+                MediaRecorder.isTypeSupported("audio/webm")
+                    ? "audio/webm"
+                    : "";
+            mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
             audioChunks = [];
+            speechStarted = false;
+            silenceStartedAt = null;
 
             mediaRecorder.ondataavailable = event => {
                 if (event.data && event.data.size > 0) {
@@ -107,9 +121,11 @@ function startTranscriptionFallback() {
                 setListeningState(false);
 
                 if (audioChunks.length > 0) {
-                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || "audio/webm" });
                     sendAudioForTranscription(audioBlob);
                 }
+
+                cleanupAudioAnalysis();
 
                 if (mediaStream) {
                     mediaStream.getTracks().forEach(track => track.stop());
@@ -123,6 +139,7 @@ function startTranscriptionFallback() {
                 setListeningState(true);
                 isRecording = true;
                 log('Recording started');
+                startVoiceActivityDetection(stream);
             };
 
             mediaRecorder.start();
@@ -131,7 +148,7 @@ function startTranscriptionFallback() {
                 if (mediaRecorder && mediaRecorder.state === "recording") {
                     mediaRecorder.stop();
                 }
-            }, FALLBACK_RECORDING_MS);
+            }, FALLBACK_MAX_RECORDING_MS);
         })
         .catch(err => {
             logError(`Microphone access denied: ${err}`);
@@ -139,9 +156,94 @@ function startTranscriptionFallback() {
         });
 }
 
+
+function startVoiceActivityDetection(stream) {
+
+    try {
+        audioContext =
+            new (window.AudioContext || window.webkitAudioContext)();
+        analyser =
+            audioContext.createAnalyser();
+        analyser.fftSize = 1024;
+
+        const source =
+            audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+
+        const samples =
+            new Uint8Array(analyser.fftSize);
+
+        const startedAt =
+            Date.now();
+
+        const tick = () => {
+            if (!analyser || !mediaRecorder || mediaRecorder.state !== "recording") {
+                return;
+            }
+
+            analyser.getByteTimeDomainData(samples);
+
+            let total = 0;
+            for (const sample of samples) {
+                const centered =
+                    (sample - 128) / 128;
+                total += centered * centered;
+            }
+
+            const volume =
+                Math.sqrt(total / samples.length);
+
+            if (volume > VOLUME_THRESHOLD) {
+                speechStarted = true;
+                silenceStartedAt = null;
+            }
+
+            else if (speechStarted) {
+                if (!silenceStartedAt) {
+                    silenceStartedAt = Date.now();
+                }
+
+                if (
+                    Date.now() - startedAt > FALLBACK_MIN_RECORDING_MS &&
+                    Date.now() - silenceStartedAt > SILENCE_STOP_MS
+                ) {
+                    mediaRecorder.stop();
+                    return;
+                }
+            }
+
+            vadFrame =
+                requestAnimationFrame(tick);
+        };
+
+        vadFrame =
+            requestAnimationFrame(tick);
+    } catch (err) {
+        logError(`Voice activity detection unavailable: ${err}`);
+    }
+}
+
+
+function cleanupAudioAnalysis() {
+
+    if (vadFrame) {
+        cancelAnimationFrame(vadFrame);
+        vadFrame = null;
+    }
+
+    if (audioContext) {
+        audioContext.close().catch(() => {});
+        audioContext = null;
+    }
+
+    analyser = null;
+    silenceStartedAt = null;
+    speechStarted = false;
+}
+
 async function sendAudioForTranscription(audioBlob) {
     const formData = new FormData();
-    formData.append('audio', audioBlob, 'recording.wav');
+    formData.append('audio', audioBlob, 'recording.webm');
 
     try {
         const response = await fetch('/api/transcribe', {
@@ -163,7 +265,10 @@ async function sendAudioForTranscription(audioBlob) {
         const fakeEvent = {
             resultIndex: 0,
             results: [{
-                0: { transcript: data.transcription },
+                0: {
+                    transcript: data.transcription,
+                    confidence: data.confidence || 0.7
+                },
                 isFinal: true
             }]
         };
@@ -194,6 +299,7 @@ export function stopRecognition() {
     isRecording = false;
     setListeningState(false);
     clearTimeout(fallbackStopTimer);
+    cleanupAudioAnalysis();
 }
 
 function handleRecognitionEnd() {

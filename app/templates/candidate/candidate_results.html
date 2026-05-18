@@ -23,6 +23,46 @@
 
     <div class="container">
         <div class="card">
+            <div class="section-title">Semester Performance</div>
+
+            {% if cgpa is not none %}
+            <p><strong>CGPA:</strong> {{ cgpa }}</p>
+            {% endif %}
+
+            {% if semester_results|length == 0 %}
+            <div class="empty-state">No semester results available yet.</div>
+            {% else %}
+            {% for sem in semester_results %}
+            <div class="subsection-title">{{ sem.semester_name }} | SGPA: {{ sem.sgpa }}</div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Subject</th>
+                        <th>Exam</th>
+                        <th>Type</th>
+                        <th>Marks</th>
+                        <th>Percentage</th>
+                        <th>Grade Point</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in sem.subjects %}
+                    <tr>
+                        <td>{{ s.subject_name }}</td>
+                        <td>{{ s.exam_name }}</td>
+                        <td>{{ s.exam_type_name }}</td>
+                        <td>{{ s.total_marks }}/{{ s.max_marks }}</td>
+                        <td>{{ s.percentage }}%</td>
+                        <td>{{ s.grade_point }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="card">
             <div class="section-title">Marks and History</div>
 
             {% if results|length == 0 %}

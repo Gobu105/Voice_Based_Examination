@@ -26,6 +26,8 @@ export function matchCommand(
                 return {
                     name,
                     action: cmd.action,
+                    destructive: Boolean(cmd.destructive),
+                    confirmationPrompt: cmd.confirmationPrompt,
                     score: 1.0
                 };
             }
@@ -46,6 +48,8 @@ export function matchCommand(
                 bestMatch = {
                     name,
                     action: cmd.action,
+                    destructive: Boolean(cmd.destructive),
+                    confirmationPrompt: cmd.confirmationPrompt,
                     score: overlapScore
                 };
             }
@@ -66,6 +70,8 @@ export function matchCommand(
                 bestMatch = {
                     name,
                     action: cmd.action,
+                    destructive: Boolean(cmd.destructive),
+                    confirmationPrompt: cmd.confirmationPrompt,
                     score: simScore
                 };
             }

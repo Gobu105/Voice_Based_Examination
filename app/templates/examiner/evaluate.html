@@ -47,7 +47,7 @@
     <div id="toast-container"></div>
     <script type="module">
         import { initializeAlerts } from "/static/js/common/alerts.js";
-        import { loadStudentAnswers, saveGrade } from "/static/js/examiner/grading.js";
+        import { loadStudentAnswers, saveGrade, lockEvaluation, reopenEvaluation } from "/static/js/examiner/grading.js";
         import { aiGrade, aiGradeAll } from "/static/js/examiner/ai_grading.js";
 
         document.addEventListener("DOMContentLoaded", () => {
@@ -69,6 +69,16 @@
 
             window.aiGradeAllHandler = async function () {
                 await aiGradeAll(sessionId);
+                await loadStudentAnswers(sessionId);
+            };
+
+            window.lockEvaluationHandler = async function () {
+                await lockEvaluation(sessionId);
+                await loadStudentAnswers(sessionId);
+            };
+
+            window.reopenEvaluationHandler = async function () {
+                await reopenEvaluation(sessionId);
                 await loadStudentAnswers(sessionId);
             };
 

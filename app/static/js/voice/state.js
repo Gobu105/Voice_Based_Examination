@@ -34,6 +34,10 @@ export const state = {
 
     pendingSubmission: false,
 
+    pendingCommand: null,
+
+    pendingCommandUntil: 0,
+
     syncedAnswers: {},
 
     pendingAnswers: {},

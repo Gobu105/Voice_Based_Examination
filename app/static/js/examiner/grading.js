@@ -204,13 +204,31 @@ export async function loadStudentAnswers(
 
     try {
 
-        const answers =
+        const result =
             await apiGet(
                 `/examiner/get_student_answers/${sessionId}`
             );
 
+        const answers =
+            Array.isArray(result)
+                ? result
+                : result.answers || [];
+
+        const evaluation =
+            Array.isArray(result)
+                ? { locked: false, reopen_count: 0 }
+                : result.evaluation || { locked: false, reopen_count: 0 };
+
         let html = `
             <div class="section-title">Answer Review and Grading</div>
+            <div style="margin-bottom: 15px;">
+                ${evaluation.locked
+                    ? '<span class="badge badge-manual">Evaluation Locked</span>'
+                    : '<span class="badge badge-tampered">Evaluation Open</span>'}
+                ${evaluation.reopen_count
+                    ? `<span class="badge badge-manual">Re-opened ${evaluation.reopen_count} time(s)</span>`
+                    : ''}
+            </div>
         `;
 
         if (
@@ -233,6 +251,9 @@ export async function loadStudentAnswers(
                     `<p><strong>Graded:</strong> ${answer.grading_method} (${answer.marks || 0} marks)</p>` :
                     `<p style="color: orange;"><strong>Pending Grading</strong></p>`;
 
+            const disabled =
+                evaluation.locked ? 'disabled' : '';
+
             const tamperWarning =
                 answer.tampered ?
                     `<p style="color: red;"><strong>⚠️ WARNING: This answer may have been tampered with!</strong></p>` :
@@ -248,9 +269,9 @@ export async function loadStudentAnswers(
                     <p style="background: #f5f5f5; padding: 10px; border-radius: 3px;">${answer.model_answer || 'N/A'}</p>
                     ${gradingStatus}
                     <div style="margin-top: 10px;">
-                        <input type="number" min="0" max="100" id="marks-${answer.answer_id}" placeholder="Marks" value="${answer.marks || ''}" style="margin-right: 10px; padding: 8px; border: 1px solid #ddd;" />
-                        <button onclick="saveGradeHandler(${answer.answer_id})" class="btn" style="margin-right: 5px;">Save Marks</button>
-                        <button onclick="aiGradeHandler(${answer.answer_id})" class="btn" style="background: #4CAF50;">AI Grade</button>
+                        <input type="number" min="0" max="10" id="marks-${answer.answer_id}" placeholder="Marks" value="${answer.marks || ''}" style="margin-right: 10px; padding: 8px; border: 1px solid #ddd;" ${disabled} />
+                        <button onclick="saveGradeHandler(${answer.answer_id})" class="btn" style="margin-right: 5px;" ${disabled}>Save Marks</button>
+                        <button onclick="aiGradeHandler(${answer.answer_id})" class="btn" style="background: #4CAF50;" ${disabled}>AI Grade</button>
                     </div>
                 </div>
             `;
@@ -258,7 +279,12 @@ export async function loadStudentAnswers(
 
         html += `
             <div style="margin-top: 15px;">
-                <button onclick="aiGradeAllHandler(${sessionId})" class="btn" style="background: #4CAF50; width: 100%;">AI Grade All</button>
+                ${evaluation.locked
+                    ? `<button onclick="reopenEvaluationHandler(${sessionId})" class="btn btn-danger" style="width: 100%;">Re-open Evaluation</button>`
+                    : `
+                        <button onclick="aiGradeAllHandler(${sessionId})" class="btn" style="background: #4CAF50; width: 100%; margin-bottom: 8px;">AI Grade All</button>
+                        <button onclick="lockEvaluationHandler(${sessionId})" class="btn btn-success" style="width: 100%;">Lock Evaluation</button>
+                    `}
             </div>
         `;
 
@@ -277,6 +303,82 @@ export async function loadStudentAnswers(
             <div class="section-title">Answer Review and Grading</div>
             <p style="color: red;">Error loading answers: ${err.message}</p>
         `;
+    }
+}
+
+
+export async function lockEvaluation(
+    sessionId
+) {
+
+    const ok =
+        confirm(
+            "Lock this evaluation? Marks cannot be changed until it is re-opened."
+        );
+
+    if (!ok) {
+        return;
+    }
+
+    try {
+
+        const result =
+            await apiPost(
+                "/examiner/lock_evaluation",
+                {
+                    session_id:
+                        sessionId
+                }
+            );
+
+        showSuccess(
+            result.message ||
+            "Evaluation locked"
+        );
+
+    } catch (err) {
+
+        showError(
+            err.message
+        );
+    }
+}
+
+
+export async function reopenEvaluation(
+    sessionId
+) {
+
+    const ok =
+        confirm(
+            "Re-open this evaluation for changes?"
+        );
+
+    if (!ok) {
+        return;
+    }
+
+    try {
+
+        const result =
+            await apiPost(
+                "/examiner/reopen_evaluation",
+                {
+                    session_id:
+                        sessionId
+                }
+            );
+
+        showSuccess(
+            result.message ||
+            "Evaluation re-opened"
+        );
+
+    } catch (err) {
+
+        showError(
+            err.message
+        );
     }
 }
 

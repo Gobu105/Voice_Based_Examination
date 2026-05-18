@@ -29,6 +29,7 @@ function initializeDashboard() {
     );
 
     initializeRegistrationToggle();
+    initializeCandidateAcademicToggle();
 }
 
 
@@ -65,4 +66,38 @@ function initializeRegistrationToggle() {
                     : "block";
         }
     );
+}
+
+
+function initializeCandidateAcademicToggle() {
+
+    const roleSelect =
+        document.getElementById(
+            "role-select"
+        );
+
+    const fields =
+        document.querySelectorAll(
+            ".candidate-academic-field"
+        );
+
+    if (!roleSelect || fields.length === 0) {
+        return;
+    }
+
+    const syncVisibility = () => {
+        fields.forEach(field => {
+            field.style.display =
+                roleSelect.value === "CANDIDATE"
+                    ? "block"
+                    : "none";
+        });
+    };
+
+    roleSelect.addEventListener(
+        "change",
+        syncVisibility
+    );
+
+    syncVisibility();
 }

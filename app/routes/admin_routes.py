@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, g
 from app.database.models import get_db, get_next_id
 from app.services.auth_service import build_email_verification_fields, send_verification_email
+from app.services.academic_service import get_academic_context, create_academic_item, enrich_candidate_academic, enrich_exam_academic
 from app.utils.decorators import role_required
 from app.utils.helpers import _is_active_flag, _candidate_and_user, generate_registration_number, is_valid_email
 from app.validators import validate_registration
@@ -15,15 +16,18 @@ def admin_dashboard():
     users = list(db.users.find())
     exams = list(db.exams.find())
     candidates = list(db.candidates.find())
+    academic = get_academic_context(db)
 
     for user in users:
         user['is_active'] = _is_active_flag(user)
     for exam in exams:
         exam['is_active'] = _is_active_flag(exam)
+        enrich_exam_academic(exam, academic)
     for candidate in candidates:
         student_user = db.users.find_one({'_id': candidate.get('reg_id')})
         candidate['student_name'] = student_user['full_name'] if student_user else 'Unknown'
         candidate['is_active'] = _is_active_flag(student_user) if student_user else False
+        enrich_candidate_academic(candidate, academic)
 
     examiner_assignments = []
     for a in db.examiner_assignments.find():
@@ -49,7 +53,28 @@ def admin_dashboard():
                 'exam_name': exam['exam_name'],
             })
 
-    return render_template('admin/admin_dashboard.html', users=users, exams=exams, candidates=candidates, examiner_assignments=examiner_assignments, invigilator_assignments=invigilator_assignments)
+    return render_template('admin/admin_dashboard.html', users=users, exams=exams, candidates=candidates, examiner_assignments=examiner_assignments, invigilator_assignments=invigilator_assignments, academic=academic)
+
+
+@admin_routes.route('/admin/create_academic_item/<collection_name>', methods=['POST'])
+@role_required('ADMIN')
+def admin_create_academic_item(collection_name):
+    db = get_db()
+    try:
+        data = {
+            'name': request.form.get('name', '').strip(),
+            'code': request.form.get('code', '').strip(),
+            'number': int(request.form.get('number', 0) or 0) or None,
+            'credits': int(request.form.get('credits', 0) or 0) or None,
+            'weightage': int(request.form.get('weightage', 0) or 0) or None,
+            'department_id': int(request.form.get('department_id', 0) or 0) or None,
+            'semester_id': int(request.form.get('semester_id', 0) or 0) or None,
+        }
+        create_academic_item(db, collection_name, data)
+        flash('Academic item created successfully.')
+    except ValueError as exc:
+        flash(str(exc))
+    return redirect(url_for('admin_routes.admin_dashboard'))
 
 
 @admin_routes.route('/admin/create_user', methods=['POST'])
@@ -63,6 +88,9 @@ def admin_create_user():
     phone = request.form.get('phone_no', '').strip()
     role = request.form.get('role', '').strip()
     registration_no = request.form.get('registration_no', '').strip()
+    department_id = int(request.form.get('department_id', 0) or 0) or None
+    semester_id = int(request.form.get('semester_id', 0) or 0) or None
+    academic_year_id = int(request.form.get('academic_year_id', 0) or 0) or None
 
     if role not in ('INVIGILATOR', 'EXAMINER', 'CANDIDATE', 'ADMIN'):
         flash('Invalid role selected.')
@@ -125,6 +153,9 @@ def admin_create_user():
             '_id': cand_id,
             'reg_id': user_id,
             'registration_no': registration_no,
+            'department_id': department_id,
+            'semester_id': semester_id,
+            'academic_year_id': academic_year_id,
         })
 
     verification_url = send_verification_email({'email': email, 'full_name': full_name, 'verification_token': verification_fields['verification_token']})

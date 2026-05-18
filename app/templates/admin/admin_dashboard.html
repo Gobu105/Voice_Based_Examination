@@ -75,11 +75,93 @@
                         <input type="text" name="phone_no" placeholder="Phone (optional)">
                     </div>
 
+                    <div class="form-group candidate-academic-field">
+                        <label>Department</label>
+                        <select name="department_id">
+                            <option value="">Not set</option>
+                            {% for d in academic.departments %}
+                            <option value="{{ d._id }}">{{ d.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group candidate-academic-field">
+                        <label>Semester</label>
+                        <select name="semester_id">
+                            <option value="">Not set</option>
+                            {% for s in academic.semesters %}
+                            <option value="{{ s._id }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group candidate-academic-field">
+                        <label>Academic Year</label>
+                        <select name="academic_year_id">
+                            <option value="">Not set</option>
+                            {% for y in academic.academic_years %}
+                            <option value="{{ y._id }}">{{ y.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
                     <div class="form-group">
                         <label>&nbsp;</label>
                         <button class="btn btn-success">Create User</button>
                     </div>
                 </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="section-title">Academic Master Data</div>
+
+            <div class="form-row">
+                <form action="/admin/create_academic_item/departments" method="post" class="form-row">
+                    <input type="text" name="name" placeholder="Department name" required>
+                    <input type="text" name="code" placeholder="Code">
+                    <button class="btn btn-success">Add Department</button>
+                </form>
+            </div>
+
+            <hr class="section-divider">
+
+            <div class="form-row">
+                <form action="/admin/create_academic_item/academic_years" method="post" class="form-row">
+                    <input type="text" name="name" placeholder="Academic year e.g. 2026-2027" required>
+                    <button class="btn btn-success">Add Year</button>
+                </form>
+                <form action="/admin/create_academic_item/semesters" method="post" class="form-row">
+                    <input type="text" name="name" placeholder="Semester name" required>
+                    <input type="number" name="number" placeholder="No." min="1">
+                    <button class="btn btn-success">Add Semester</button>
+                </form>
+                <form action="/admin/create_academic_item/exam_types" method="post" class="form-row">
+                    <input type="text" name="name" placeholder="Exam type" required>
+                    <input type="number" name="weightage" placeholder="Weightage %" min="0" max="100">
+                    <button class="btn btn-success">Add Type</button>
+                </form>
+            </div>
+
+            <hr class="section-divider">
+
+            <form action="/admin/create_academic_item/subjects" method="post" class="form-row">
+                <input type="text" name="name" placeholder="Subject name" required>
+                <input type="text" name="code" placeholder="Code">
+                <input type="number" name="credits" placeholder="Credits" min="1">
+                <select name="department_id">
+                    <option value="">Department</option>
+                    {% for d in academic.departments %}
+                    <option value="{{ d._id }}">{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="semester_id">
+                    <option value="">Semester</option>
+                    {% for s in academic.semesters %}
+                    <option value="{{ s._id }}">{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-success">Add Subject</button>
             </form>
         </div>
 
@@ -97,6 +179,7 @@
                         <th>Username</th>
                         <th>Email</th>
                         <th>Role</th>
+                        <th>Academic</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -109,6 +192,18 @@
                         <td>{{ u.username }}</td>
                         <td>{{ u.email }}</td>
                         <td><span class="role-badge role-{{ u.role }}">{{ u.role }}</span></td>
+                        <td>
+                            {% if u.role == 'CANDIDATE' %}
+                                {% for c in candidates %}
+                                    {% if c.reg_id == u._id %}
+                                        {{ c.department_name }}<br>
+                                        <span style="color:#64748b;">{{ c.semester_name }} | {{ c.academic_year_name }}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <span style="color:#94a3b8;">-</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if u.is_active %}
                             <span class="badge badge-manual">Active</span>

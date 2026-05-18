@@ -3,6 +3,7 @@ from app.database.models import get_db, get_next_id
 from app.services.auth_service import build_email_verification_fields, send_verification_email
 from app.services.exam_service import create_exam as create_exam_record, activate_exam, get_questions_for_exam
 from app.services.session_service import create_exam_session
+from app.services.academic_service import get_academic_context, enrich_candidate_academic, enrich_exam_academic
 from app.utils.decorators import roles_required
 from app.utils.helpers import _is_active_flag, _candidate_and_user, get_active_exam, ensure_examiner_assignment, generate_registration_number, is_valid_email
 from app.validators import validate_registration
@@ -15,8 +16,11 @@ invigilator_routes = Blueprint('invigilator_routes', __name__)
 def invigilator_dashboard():
     db = get_db()
     exams = list(db.exams.find())
+    academic = get_academic_context(db)
     for exam in exams:
         exam['is_active'] = _is_active_flag(exam)
+        exam['is_started'] = db.exam_sessions.find_one({'exam_id': exam['_id'], 'status': 'STARTED'}) is not None
+        enrich_exam_academic(exam, academic)
 
     candidates = []
     for candidate in db.candidates.find():
@@ -29,7 +33,11 @@ def invigilator_dashboard():
             'full_name': user['full_name'],
             'registration_no': candidate.get('registration_no', 'N/A'),
             'is_active': _is_active_flag(user),
+            'department_id': candidate.get('department_id'),
+            'semester_id': candidate.get('semester_id'),
+            'academic_year_id': candidate.get('academic_year_id'),
         })
+        enrich_candidate_academic(candidates[-1], academic)
 
     active_candidates = [c for c in candidates if c['is_active']]
     active_exams = [e for e in exams if e['is_active']]
@@ -58,7 +66,7 @@ def invigilator_dashboard():
         else:
             exam_assignments.append(assignment_item)
 
-    return render_template('invigilator/invigilator_dashboard.html', exams=exams, active_exams=active_exams, candidates=candidates, active_candidates=active_candidates, exam_assignments=exam_assignments, completed_assignments=completed_assignments)
+    return render_template('invigilator/invigilator_dashboard.html', exams=exams, active_exams=active_exams, candidates=candidates, active_candidates=active_candidates, exam_assignments=exam_assignments, completed_assignments=completed_assignments, academic=academic)
 
 
 @invigilator_routes.route('/invigilator/create_student', methods=['POST'])
@@ -71,6 +79,9 @@ def create_student():
     password = request.form.get('password', '').strip()
     phone = request.form.get('phone_no', '').strip()
     registration_no = request.form.get('registration_no', '').strip()
+    department_id = int(request.form.get('department_id', 0) or 0) or None
+    semester_id = int(request.form.get('semester_id', 0) or 0) or None
+    academic_year_id = int(request.form.get('academic_year_id', 0) or 0) or None
 
     if not all([full_name, username, email, password]):
         flash('All required fields must be filled.')
@@ -122,7 +133,7 @@ def create_student():
         'session_token': None,
     })
     candidate_id = get_next_id('candidates')
-    db.candidates.insert_one({'_id': candidate_id, 'reg_id': reg_id, 'registration_no': registration_no})
+    db.candidates.insert_one({'_id': candidate_id, 'reg_id': reg_id, 'registration_no': registration_no, 'department_id': department_id, 'semester_id': semester_id, 'academic_year_id': academic_year_id})
 
     verification_url = send_verification_email({'email': email, 'full_name': full_name, 'verification_token': verification_fields['verification_token']})
     if verification_url:
@@ -193,6 +204,13 @@ def create_exam():
     db = get_db()
     exam_name = request.form.get('name', '').strip()
     duration = request.form.get('duration', '60').strip()
+    academic_data = {
+        'department_id': int(request.form.get('department_id', 0) or 0) or None,
+        'subject_id': int(request.form.get('subject_id', 0) or 0) or None,
+        'semester_id': int(request.form.get('semester_id', 0) or 0) or None,
+        'academic_year_id': int(request.form.get('academic_year_id', 0) or 0) or None,
+        'exam_type_id': int(request.form.get('exam_type_id', 0) or 0) or None,
+    }
 
     if not exam_name:
         flash('Exam name is required.')
@@ -205,7 +223,7 @@ def create_exam():
     except ValueError:
         duration = 60
 
-    create_exam_record(db, exam_name, duration, g.current_user_id, current_app._master_key)
+    create_exam_record(db, exam_name, duration, g.current_user_id, current_app._master_key, academic_data)
     flash(f"Exam '{exam_name}' created successfully.")
     return redirect(url_for('invigilator_routes.invigilator_dashboard'))
 

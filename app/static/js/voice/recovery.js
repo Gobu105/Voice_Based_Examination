@@ -6,6 +6,7 @@ import { setSaveStatus, showDraftBanner } from "./ui.js";
 
 const LOCAL_KEY = "voice_exam_draft";
 const RECOVERY_KEY = "voice_exam_recovery_state";
+const DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export function initializeAutosave() {
     stopAutosave();
@@ -37,6 +38,7 @@ export function stopAutosave() {
 
     window.removeEventListener("online", handleOnline);
     window.removeEventListener("offline", handleOffline);
+    window.removeEventListener("beforeunload", handleBeforeUnload);
 }
 
 
@@ -203,6 +205,14 @@ export function restoreDraft(expectedQuestionIds = [], expectedSessionId = null)
         const draft = JSON.parse(raw);
 
         if (!Array.isArray(draft.answers)) {
+            return { restored: false, pendingCount: 0 };
+        }
+
+        if (
+            draft.timestamp &&
+            Date.now() - draft.timestamp > DRAFT_MAX_AGE_MS
+        ) {
+            clearDraft();
             return { restored: false, pendingCount: 0 };
         }
 

@@ -56,6 +56,19 @@ export const COMMANDS = {
         action: cmdNextQuestion
     },
 
+    previous: {
+
+        synonyms: [
+
+            "previous question",
+            "go back",
+            "back question",
+            "last question"
+        ],
+
+        action: cmdPreviousQuestion
+    },
+
     repeat: {
 
         synonyms: [
@@ -89,7 +102,9 @@ export const COMMANDS = {
             "redo answer"
         ],
 
-        action: cmdClearAnswer
+        action: cmdClearAnswer,
+        destructive: true,
+        confirmationPrompt: "Clear this answer? Say yes to confirm or no to cancel."
     },
 
     timeLeft: {
@@ -112,7 +127,9 @@ export const COMMANDS = {
             "end exam"
         ],
 
-        action: cmdSubmitExam
+        action: cmdSubmitExam,
+        destructive: true,
+        confirmationPrompt: "Submit the exam now? Say yes to confirm or no to cancel."
     },
 
     help: {
@@ -177,6 +194,44 @@ export function cmdNextQuestion() {
             "All questions completed"
         );
     }
+}
+
+
+export function cmdPreviousQuestion() {
+
+    if (state.currentIndex <= 0) {
+
+        state.currentIndex = 0;
+
+        speak(
+            "You are already on the first question."
+        );
+
+        return;
+    }
+
+    state.currentIndex--;
+
+    const qNum =
+        state.currentIndex + 1;
+
+    const qText =
+        state.questions[
+            state.currentIndex
+        ];
+
+    showQuestion(
+        qNum,
+        qText
+    );
+
+    speak(
+        `Question ${qNum}. ${qText}`
+    );
+
+    log(
+        `Question ${qNum} presented`
+    );
 }
 
 
@@ -358,6 +413,7 @@ export function cmdHelp() {
     speak(
         `
         You can say next question,
+        previous question,
         skip question,
         go to question followed by a number,
         repeat question,

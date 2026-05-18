@@ -8,11 +8,11 @@ def get_exam_by_id(db, exam_id):
     return db.exams.find_one({'_id': exam_id})
 
 
-def create_exam(db, name, duration, creator_id, master_key):
+def create_exam(db, name, duration, creator_id, master_key, academic_data=None):
     exam_key = generate_exam_key()
     ciphertext, iv, tag = encrypt_exam_key(exam_key, master_key)
     exam_id = get_next_id('exams')
-    db.exams.insert_one({
+    payload = {
         '_id': exam_id,
         'exam_name': name,
         'duration': duration,
@@ -23,7 +23,10 @@ def create_exam(db, name, duration, creator_id, master_key):
         'enc_key_ciphertext': ciphertext,
         'enc_key_iv': iv,
         'enc_key_tag': tag,
-    })
+    }
+    if academic_data:
+        payload.update({k: v for k, v in academic_data.items() if v})
+    db.exams.insert_one(payload)
     return exam_id
 
 

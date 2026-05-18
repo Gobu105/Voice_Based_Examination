@@ -12,13 +12,20 @@ with app.app_context():
     # Drop all existing collections for a clean slate
     for col in ("users", "candidates", "exams", "questions",
                 "exam_sessions", "answers", "evaluations",
-                "examiner_assignments", "exam_assignments", "counters"):
+                "examiner_assignments", "exam_assignments",
+                "departments", "subjects", "academic_years", "semesters", "exam_types",
+                "counters"):
         db[col].drop()
 
     # Re-create unique indexes
     db.users.create_index("username", unique=True)
     db.users.create_index("email", unique=True)
     db.candidates.create_index("registration_no", unique=True)
+    db.departments.create_index("name", unique=True)
+    db.subjects.create_index("name", unique=True)
+    db.academic_years.create_index("name", unique=True)
+    db.semesters.create_index("name", unique=True)
+    db.exam_types.create_index("name", unique=True)
     # ----
     # -----------------------------
 
@@ -94,6 +101,9 @@ with app.app_context():
         "_id": cand_id,
         "reg_id": cand_user_id,
         "registration_no": "CAND-001",
+        "department_id": dept_id,
+        "semester_id": sem_id,
+        "academic_year_id": year_id,
     })
 
     # -----------------------------
@@ -108,6 +118,11 @@ with app.app_context():
         "exam_name": "Physics \u2013 Demo Subjective Exam",
         "duration": 60,
         "total_marks": 100,
+        "department_id": dept_id,
+        "subject_id": subject_id,
+        "semester_id": sem_id,
+        "academic_year_id": year_id,
+        "exam_type_id": exam_type_id,
         "is_active": True,
         "created_by": inv_id,
         "enc_key_ciphertext": enc_ct,
@@ -197,3 +212,25 @@ with app.app_context():
     print("Invigilator -> invigilator / invigilator123")
     print("Examiner    -> examiner / examiner123")
     print("Admin       -> admin / admin123")
+    dept_id = get_next_id("departments")
+    db.departments.insert_one({"_id": dept_id, "name": "Physics Department", "code": "PHY", "is_active": True})
+
+    year_id = get_next_id("academic_years")
+    db.academic_years.insert_one({"_id": year_id, "name": "2025-2026", "is_active": True})
+
+    sem_id = get_next_id("semesters")
+    db.semesters.insert_one({"_id": sem_id, "name": "Semester 1", "number": 1, "is_active": True})
+
+    exam_type_id = get_next_id("exam_types")
+    db.exam_types.insert_one({"_id": exam_type_id, "name": "EndSem", "weightage": 100, "is_active": True})
+
+    subject_id = get_next_id("subjects")
+    db.subjects.insert_one({
+        "_id": subject_id,
+        "name": "Physics",
+        "code": "PHY101",
+        "department_id": dept_id,
+        "semester_id": sem_id,
+        "credits": 4,
+        "is_active": True,
+    })

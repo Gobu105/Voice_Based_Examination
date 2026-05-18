@@ -6,12 +6,32 @@ from app.services.ai_service import score_answer
 examiner_routes = Blueprint('examiner_routes', __name__)
 
 
+def _now():
+    return __import__('datetime').datetime.now(__import__('datetime').timezone.utc)
+
+
 def _examiner_can_access_session(db, examiner_id, session_id):
     exam_sess = db.exam_sessions.find_one({'_id': session_id})
     if not exam_sess:
         return False
     assignment = db.examiner_assignments.find_one({'examiner_id': examiner_id, 'candidate_id': exam_sess['candidate_id'], 'exam_id': exam_sess['exam_id']})
     return assignment is not None
+
+
+def _get_evaluation_state(exam_sess):
+    evaluation = exam_sess.get('evaluation') or {}
+    return {
+        'locked': bool(evaluation.get('locked')),
+        'locked_at': evaluation.get('locked_at'),
+        'locked_by': evaluation.get('locked_by'),
+        'reopened_at': evaluation.get('reopened_at'),
+        'reopened_by': evaluation.get('reopened_by'),
+        'reopen_count': int(evaluation.get('reopen_count', 0) or 0),
+    }
+
+
+def _is_evaluation_locked(exam_sess):
+    return _get_evaluation_state(exam_sess)['locked']
 
 
 @examiner_routes.route('/examiner/dashboard')
@@ -91,7 +111,7 @@ def get_student_answers(session_id):
             plaintext = '[DECRYPTION FAILED — answer may have been tampered with]'
             tampered = True
         data.append({'answer_id': a['_id'], 'question': q['question_text'] if q else 'Unknown', 'model_answer': q.get('model_answer', '') if q else '', 'answer': plaintext, 'marks': a.get('marks'), 'ai_marks': a.get('ai_marks'), 'grading_method': a.get('grading_method'), 'tampered': tampered})
-    return jsonify(data)
+    return jsonify({'answers': data, 'evaluation': _get_evaluation_state(exam_sess)})
 
 
 @examiner_routes.route('/examiner/save_grade', methods=['POST'])
@@ -106,7 +126,12 @@ def examiner_save_grade():
         return jsonify({'error': 'answer not found'}), 404
     if not _examiner_can_access_session(db, g.current_user_id, answer_doc['session_id']):
         return jsonify({"error": "you are not assigned to grade this student's exam"}), 403
-    db.answers.update_one({'_id': answer_id}, {'$set': {'marks': marks, 'grading_method': 'MANUAL', 'graded_at': __import__('datetime').datetime.now(__import__('datetime').timezone.utc)}})
+    exam_sess = db.exam_sessions.find_one({'_id': answer_doc['session_id']})
+    if _is_evaluation_locked(exam_sess):
+        return jsonify({'error': 'Evaluation is locked. Re-open evaluation before changing marks.'}), 423
+    if marks < 0 or marks > 10:
+        return jsonify({'error': 'Marks must be between 0 and 10.'}), 400
+    db.answers.update_one({'_id': answer_id}, {'$set': {'marks': marks, 'grading_method': 'MANUAL', 'graded_at': _now(), 'graded_by': g.current_user_id}})
     return jsonify({'status': 'marks saved', 'marks': marks})
 
 
@@ -122,6 +147,8 @@ def examiner_ai_grade():
     if not _examiner_can_access_session(db, g.current_user_id, answer_doc['session_id']):
         return jsonify({"error": "you are not assigned to grade this student's exam"}), 403
     exam_sess = db.exam_sessions.find_one({'_id': answer_doc['session_id']})
+    if _is_evaluation_locked(exam_sess):
+        return jsonify({'error': 'Evaluation is locked. Re-open evaluation before AI grading.'}), 423
     exam = db.exams.find_one({'_id': exam_sess['exam_id']})
     exam_key = __import__('app.services.crypto_service', fromlist=['decrypt_exam_key']).decrypt_exam_key(bytes(exam['enc_key_ciphertext']), bytes(exam['enc_key_iv']), bytes(exam['enc_key_tag']), current_app._master_key)
     try:
@@ -132,7 +159,7 @@ def examiner_ai_grade():
     question_text = question['question_text'] if question else ''
     model_answer = question.get('model_answer', '') if question else ''
     ai_marks = score_answer(question_text, plaintext, model_answer)
-    db.answers.update_one({'_id': answer_id}, {'$set': {'marks': ai_marks, 'ai_marks': ai_marks, 'grading_method': 'AI', 'graded_at': __import__('datetime').datetime.now(__import__('datetime').timezone.utc)}})
+    db.answers.update_one({'_id': answer_id}, {'$set': {'marks': ai_marks, 'ai_marks': ai_marks, 'grading_method': 'AI', 'graded_at': _now(), 'graded_by': g.current_user_id}})
     return jsonify({'status': 'ai graded', 'marks': ai_marks})
 
 
@@ -149,6 +176,8 @@ def examiner_ai_grade_all():
     exam_sess = db.exam_sessions.find_one({'_id': session_id})
     if not exam_sess:
         return jsonify({'error': 'session not found'}), 404
+    if _is_evaluation_locked(exam_sess):
+        return jsonify({'error': 'Evaluation is locked. Re-open evaluation before AI grading.'}), 423
 
     exam = db.exams.find_one({'_id': exam_sess['exam_id']})
     if not exam:
@@ -167,10 +196,74 @@ def examiner_ai_grade_all():
         question_text = question['question_text'] if question else ''
         model_answer = question.get('model_answer', '') if question else ''
         ai_marks = score_answer(question_text, plaintext, model_answer)
-        db.answers.update_one({'_id': answer_doc['_id']}, {'$set': {'marks': ai_marks, 'ai_marks': ai_marks, 'grading_method': 'AI', 'graded_at': __import__('datetime').datetime.now(__import__('datetime').timezone.utc)}})
+        db.answers.update_one({'_id': answer_doc['_id']}, {'$set': {'marks': ai_marks, 'ai_marks': ai_marks, 'grading_method': 'AI', 'graded_at': _now(), 'graded_by': g.current_user_id}})
         graded_count += 1
 
     return jsonify({'status': 'ai graded', 'message': f'AI graded {graded_count} answer(s).'})
+
+
+@examiner_routes.route('/examiner/lock_evaluation', methods=['POST'])
+@role_required('EXAMINER')
+def lock_evaluation():
+    db = get_db()
+    data = request.get_json(silent=True) or request.form
+    session_id = int(data.get('session_id', 0))
+
+    if not _examiner_can_access_session(db, g.current_user_id, session_id):
+        return jsonify({"error": "you are not assigned to lock this evaluation"}), 403
+
+    exam_sess = db.exam_sessions.find_one({'_id': session_id})
+    if not exam_sess:
+        return jsonify({'error': 'session not found'}), 404
+
+    answers = list(db.answers.find({'session_id': session_id}))
+    if not answers:
+        return jsonify({'error': 'No answers are available to lock.'}), 400
+
+    ungraded_count = sum(1 for a in answers if a.get('marks') is None)
+    if ungraded_count:
+        return jsonify({'error': f'{ungraded_count} answer(s) still need marks before locking.'}), 400
+
+    now = _now()
+    db.exam_sessions.update_one(
+        {'_id': session_id},
+        {'$set': {
+            'evaluation.locked': True,
+            'evaluation.locked_at': now,
+            'evaluation.locked_by': g.current_user_id,
+            'evaluation.updated_at': now,
+        }},
+    )
+    return jsonify({'status': 'locked', 'message': 'Evaluation locked.'})
+
+
+@examiner_routes.route('/examiner/reopen_evaluation', methods=['POST'])
+@role_required('EXAMINER')
+def reopen_evaluation():
+    db = get_db()
+    data = request.get_json(silent=True) or request.form
+    session_id = int(data.get('session_id', 0))
+
+    if not _examiner_can_access_session(db, g.current_user_id, session_id):
+        return jsonify({"error": "you are not assigned to re-open this evaluation"}), 403
+
+    exam_sess = db.exam_sessions.find_one({'_id': session_id})
+    if not exam_sess:
+        return jsonify({'error': 'session not found'}), 404
+
+    evaluation = _get_evaluation_state(exam_sess)
+    now = _now()
+    db.exam_sessions.update_one(
+        {'_id': session_id},
+        {'$set': {
+            'evaluation.locked': False,
+            'evaluation.reopened_at': now,
+            'evaluation.reopened_by': g.current_user_id,
+            'evaluation.updated_at': now,
+        },
+         '$inc': {'evaluation.reopen_count': 1 if evaluation['locked'] else 0}},
+    )
+    return jsonify({'status': 'reopened', 'message': 'Evaluation re-opened for changes.'})
 
 
 @examiner_routes.route('/examiner/get_result/<int:session_id>')

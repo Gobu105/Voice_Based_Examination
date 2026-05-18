@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, g, current_app
 from pymongo.errors import PyMongoError
 from app.database.models import get_db, get_next_id
+from app.services.academic_service import get_academic_context, build_candidate_semester_results
 from app.utils.decorators import roles_required
 from app.utils.helpers import _is_active_flag, _candidate_and_user, get_active_exam, ensure_examiner_assignment, normalize_answer, format_datetime_for_display
 
@@ -28,8 +29,9 @@ def candidate_results():
     candidate = db.candidates.find_one({'reg_id': g.current_user_id})
     user = db.users.find_one({'_id': g.current_user_id})
     if not candidate:
-        return render_template('candidate/candidate_results.html', student_name=user['full_name'] if user else 'Student', results=[])
+        return render_template('candidate/candidate_results.html', student_name=user['full_name'] if user else 'Student', results=[], semester_results=[], cgpa=None)
 
+    academic = get_academic_context(db)
     sessions = list(db.exam_sessions.find({'candidate_id': candidate['_id']}).sort('start_time', -1))
     results = []
     for sess in sessions:
@@ -49,7 +51,8 @@ def candidate_results():
             'submitted_at': format_datetime_for_display(sess.get('submitted_at') or sess.get('end_time')),
             'graded_at': format_datetime_for_display(max(graded_at_values) if graded_at_values else None),
         })
-    return render_template('candidate/candidate_results.html', student_name=user['full_name'] if user else 'Student', results=results)
+    semester_results, cgpa = build_candidate_semester_results(db, candidate['_id'], academic)
+    return render_template('candidate/candidate_results.html', student_name=user['full_name'] if user else 'Student', results=results, semester_results=semester_results, cgpa=cgpa)
 
 
 @candidate_routes.route('/api/session_check')
@@ -92,8 +95,8 @@ def save_answer():
     exam_sess = db.exam_sessions.find_one({'_id': g.exam_session_id})
     if not exam_sess:
         return jsonify({'error': 'session not found'}), 400
-    if exam_sess.get('status') == 'SUBMITTED':
-        return jsonify({'error': 'Exam session already submitted'}), 403
+    if exam_sess.get('status') != 'STARTED':
+        return jsonify({'error': 'Exam session is not accepting answers.'}), 403
 
     exam = db.exams.find_one({'_id': exam_sess['exam_id']})
     if not exam:
@@ -249,9 +252,44 @@ def submit_exam():
     if not candidate or exam_sess.get('candidate_id') != candidate['_id']:
         return jsonify({'error': 'forbidden'}), 403
 
-    now = __import__('datetime').datetime.now(__import__('datetime').timezone.utc)
-    if exam_sess.get('status') != 'SUBMITTED':
-        db.exam_sessions.update_one({'_id': g.exam_session_id}, {'$set': {'status': 'SUBMITTED', 'end_time': now, 'submitted_at': now}})
+    if exam_sess.get('status') == 'SUBMITTED':
+        accounts = session.get('accounts') or {}
+        candidate_account = accounts.get('CANDIDATE') or {}
+        candidate_account['exam_session_id'] = None
+        accounts['CANDIDATE'] = candidate_account
+        session['accounts'] = accounts
+        return jsonify({'status': 'submitted', 'submitted_at': format_datetime_for_display(exam_sess.get('submitted_at') or exam_sess.get('end_time'))})
+
+    if exam_sess.get('status') not in ('STARTED', 'SUBMITTING'):
+        return jsonify({'error': 'Exam session cannot be submitted in its current state.'}), 409
+
+    now = datetime.now(timezone.utc)
+    try:
+        if exam_sess.get('status') == 'STARTED':
+            transition = db.exam_sessions.update_one(
+                {'_id': g.exam_session_id, 'status': 'STARTED'},
+                {'$set': {'status': 'SUBMITTING', 'submit_started_at': now}},
+            )
+            if transition.modified_count != 1:
+                latest = db.exam_sessions.find_one({'_id': g.exam_session_id})
+                if latest and latest.get('status') == 'SUBMITTED':
+                    submitted_at = latest.get('submitted_at') or latest.get('end_time')
+                    return jsonify({'status': 'submitted', 'submitted_at': format_datetime_for_display(submitted_at)})
+                return jsonify({'error': 'Unable to lock session for submission. Please retry.'}), 409
+
+        answer_count = db.answers.count_documents({'session_id': g.exam_session_id})
+        db.exam_sessions.update_one(
+            {'_id': g.exam_session_id, 'status': 'SUBMITTING'},
+            {'$set': {
+                'status': 'SUBMITTED',
+                'end_time': now,
+                'submitted_at': now,
+                'submitted_answer_count': answer_count,
+            }},
+        )
+    except PyMongoError:
+        return jsonify({'error': 'Database error submitting exam. Please retry.'}), 500
+
     accounts = session.get('accounts') or {}
     candidate_account = accounts.get('CANDIDATE') or {}
     candidate_account['exam_session_id'] = None
@@ -276,8 +314,13 @@ def transcribe_audio():
     
     try:
         audio_bytes = audio_file.read()
-        transcription = __import__('app.services.speech_service', fromlist=['transcribe_audio']).transcribe_audio(audio_bytes)
-        return jsonify({'transcription': transcription})
+        transcription = __import__('app.services.speech_service', fromlist=['transcribe_audio']).transcribe_audio(audio_bytes, audio_file.filename)
+        return jsonify({
+            'transcription': transcription['text'],
+            'confidence': transcription['confidence'],
+            'language': transcription['language'],
+            'segments': transcription['segments'],
+        })
     except Exception as e:
         return jsonify({'error': f'Transcription failed: {str(e)}'}), 500
 

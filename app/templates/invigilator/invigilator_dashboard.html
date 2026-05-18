@@ -44,6 +44,24 @@
                 <input type="email" name="email" placeholder="Email *" required>
                 <input type="password" name="password" placeholder="Password *" required>
                 <input type="text" name="phone_no" placeholder="Phone (optional)">
+                <select name="department_id">
+                    <option value="">Department</option>
+                    {% for d in academic.departments %}
+                    <option value="{{ d._id }}">{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="semester_id">
+                    <option value="">Semester</option>
+                    {% for s in academic.semesters %}
+                    <option value="{{ s._id }}">{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="academic_year_id">
+                    <option value="">Academic Year</option>
+                    {% for y in academic.academic_years %}
+                    <option value="{{ y._id }}">{{ y.name }}</option>
+                    {% endfor %}
+                </select>
                 <button class="btn btn-success">Create Student</button>
             </form>
         </div>
@@ -60,6 +78,7 @@
                 <div>
                     <strong>{{ c.full_name }}</strong>
                     <span style="color:#64748b;"> | Reg. No: {{ c.registration_no }}</span>
+                    <span style="color:#64748b;"> | {{ c.department_name }} | {{ c.semester_name }}</span>
                     {% if c.is_active %}
                     <span class="badge badge-manual">Active</span>
                     {% else %}
@@ -139,6 +158,36 @@
             <form action="/invigilator/create_exam" method="post" class="form-row">
                 <input type="text" name="name" placeholder="Exam Name" required>
                 <input type="number" name="duration" placeholder="Duration (minutes)" required>
+                <select name="department_id">
+                    <option value="">Department</option>
+                    {% for d in academic.departments %}
+                    <option value="{{ d._id }}">{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="subject_id">
+                    <option value="">Subject</option>
+                    {% for s in academic.subjects %}
+                    <option value="{{ s._id }}">{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="semester_id">
+                    <option value="">Semester</option>
+                    {% for s in academic.semesters %}
+                    <option value="{{ s._id }}">{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="academic_year_id">
+                    <option value="">Academic Year</option>
+                    {% for y in academic.academic_years %}
+                    <option value="{{ y._id }}">{{ y.name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="exam_type_id">
+                    <option value="">Exam Type</option>
+                    {% for t in academic.exam_types %}
+                    <option value="{{ t._id }}">{{ t.name }}</option>
+                    {% endfor %}
+                </select>
                 <button class="btn btn-success">Create Exam</button>
             </form>
         </div>
@@ -154,6 +203,7 @@
             <div class="item flex">
                 <div>
                     <strong>{{ e.exam_name }}</strong>
+                    <span style="color:#64748b;"> | {{ e.subject_name }} | {{ e.semester_name }} | {{ e.exam_type_name }}</span>
                     {% if e.is_active %}
                     <span class="badge badge-manual">Active</span>
                     {% else %}
@@ -167,7 +217,7 @@
                     <a href="/invigilator/edit_questions/{{ e._id }}">
                         <button class="btn">Manage Questions</button>
                     </a>
-                    {% if e.is_active %}
+                    {% if e.is_started %}
                     <form action="/invigilator/stop_exam/{{ e._id }}" method="post" style="display:inline;"
                         onsubmit="return confirm('Stop this exam now?');">
                         <button type="submit" class="btn btn-danger">Stop Exam</button>
