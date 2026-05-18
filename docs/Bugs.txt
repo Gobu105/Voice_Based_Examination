@@ -1,7 +1,32 @@
-Able to access exam even when the exam is inactive, for students this bug is not there.
-The duration can be negetive (which shouldn't be).
-Manage exam button not working (cru operation with activity operation is not working).
-Start exam not working in student not able to give exam.
-all the logs should be in the logs folder...
-the logs are not even shown on terminal...
-Evalute not working button so can't describe further...
+Current bug/status tracker
+Last updated: 2026-05-18
+
+Resolved / addressed:
+
+- Manage Exam is available as a dedicated page.
+- Manage Questions was moved from the invigilator dashboard to a dedicated page.
+- Start Exam works for candidates when the invigilator starts the assigned exam.
+- Start Exam and Set Active are separate controls.
+- Set Active no longer starts exam sessions by itself.
+- Start Exam changes to Stop Exam only when a STARTED session exists.
+- Stop Exam is available for manually stopping started sessions.
+- Evaluation is examiner-only and opens on a dedicated evaluation page.
+- Invigilator Exam Sessions and Answer Evaluation components were removed.
+- Candidate question display no longer resets back to the start message after exam start.
+- Multi-part voice answers append instead of overwriting previous answer text.
+- The "You may speak now" delay was removed/reduced.
+- Whisper transcription fallback exists when browser speech recognition is not usable.
+- Exam duration is normalized server-side when creating/editing exams.
+- Completed assignments are visible in the Assign Student to Exam section.
+- Academic master data and candidate semester result summaries are implemented for the MVP.
+
+Still pending / needs later hardening:
+
+- Centralized file logging in the logs folder.
+- Better terminal and file visibility for runtime logs.
+- Broader automated test coverage.
+- CSRF protection on POST forms.
+- Audit logging for login, exam start/stop, submission, and grading.
+- PDF marksheet generation.
+- Edit/delete screens for academic master records.
+- Docker and deployment documentation.
