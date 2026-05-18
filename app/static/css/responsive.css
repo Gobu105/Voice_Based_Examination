@@ -113,3 +113,202 @@
         padding: 12px;
     }
 }
+
+/* =========================
+   EXTRA RESPONSIVE FIXES
+========================= */
+
+@media (max-width: 768px) {
+
+    /* Tables */
+    .data-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        border-radius: 10px;
+    }
+
+    /* Forms */
+    .form-group {
+        width: 100%;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+    }
+
+    /* Buttons */
+    .btn,
+    .btn-primary,
+    .btn-success,
+    .btn-danger {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* User action buttons */
+    .user-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .user-actions .btn {
+        width: 100%;
+    }
+
+    /* Header layout */
+    .exam-header,
+    .header {
+        gap: 12px;
+    }
+
+    .exam-header h1,
+    .header h2 {
+        width: 100%;
+        text-align: center;
+    }
+
+    /* Timer */
+    .exam-timer {
+        width: 100%;
+    }
+
+    /* Status bar */
+    .status-bar {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Panels */
+    .panel,
+    .card {
+        padding: 14px;
+    }
+
+    /* Assignment & session cards */
+    .assignment-item,
+    .session-item,
+    .student-item,
+    .answer-card {
+        width: 100%;
+    }
+
+    /* Grid fix */
+    .exam-grid,
+    .two-col,
+    .assignment-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* =========================
+   SMALL MOBILE DEVICES
+========================= */
+
+@media (max-width: 480px) {
+
+    body {
+        font-size: 13px;
+    }
+
+    .login-box {
+        padding: 22px 18px;
+    }
+
+    .panel,
+    .card {
+        padding: 12px;
+        border-radius: 12px;
+    }
+
+    .question-display,
+    .transcript-area,
+    .answer-text,
+    .log-area {
+        font-size: 0.85rem;
+    }
+
+    .exam-header {
+        padding: 12px;
+    }
+
+    .exam-header h1 {
+        font-size: 1rem;
+        line-height: 1.4;
+    }
+
+    .logout-link,
+    .logout {
+        width: 100%;
+        text-align: center;
+    }
+
+    .grading-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .grading-row input {
+        width: 100%;
+    }
+
+    .publish-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .control-panel {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .result-row {
+        grid-template-columns: 1fr;
+    }
+
+    .command-help ul {
+        padding-left: 0;
+    }
+}
+
+@media (max-width: 768px) {
+
+    /* Fix form alignment */
+    .form-row {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .form-group {
+        width: 100%;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+    }
+
+    /* Create student form fix */
+    #create-user-form {
+        width: 100%;
+    }
+
+    #create-user-form .form-group {
+        width: 100%;
+    }
+
+    #create-user-form input,
+    #create-user-form select {
+        width: 100%;
+    }
+
+    /* Remove right-side shrinking */
+    #registration-number-group {
+        width: 100%;
+    }
+}
